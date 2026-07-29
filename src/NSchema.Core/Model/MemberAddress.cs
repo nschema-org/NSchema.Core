@@ -15,9 +15,6 @@ public sealed record MemberAddress(
 ) : Address
 {
     /// <inheritdoc />
-    public override SqlIdentifier SchemaName => Schema;
-
-    /// <inheritdoc />
     protected override IReadOnlyList<SqlIdentifier> Path => [Schema, Object, Member];
 
     // Nothing lives inside a member.

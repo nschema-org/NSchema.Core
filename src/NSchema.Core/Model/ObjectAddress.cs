@@ -9,9 +9,6 @@ namespace NSchema.Model;
 public sealed record ObjectAddress(SqlIdentifier Schema, SqlIdentifier Name, SchemaObjectKind? Kind = null) : Address
 {
     /// <inheritdoc />
-    public override SqlIdentifier SchemaName => Schema;
-
-    /// <inheritdoc />
     protected override IReadOnlyList<SqlIdentifier> Path => [Schema, Name];
 
     /// <inheritdoc />

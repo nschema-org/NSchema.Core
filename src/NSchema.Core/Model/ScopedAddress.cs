@@ -10,10 +10,6 @@ namespace NSchema.Model;
 public sealed record ScopedAddress(SqlIdentifier? Schema, SqlIdentifier Name) : Address
 {
     /// <inheritdoc />
-    [JsonIgnore]
-    public override SqlIdentifier? SchemaName => Schema;
-
-    /// <inheritdoc />
     protected override IReadOnlyList<SqlIdentifier> Path => Schema != null ? [Schema, Name] : [Name];
 
     /// <inheritdoc />

@@ -5,9 +5,6 @@
         Name: {
           Value: app
         },
-        SchemaName: {
-          Value: app
-        },
         Value: app
       },
       IsImplicit: false,
@@ -30,18 +27,12 @@
               Member: {
                 Value: users_pkey
               },
-              SchemaName: {
-                Value: app
-              },
               Owner: {
                 Schema: {
                   Value: app
                 },
                 Name: {
                   Value: users
-                },
-                SchemaName: {
-                  Value: app
                 },
                 Value: app.users
               },
@@ -70,18 +61,12 @@
                 Member: {
                   Value: id
                 },
-                SchemaName: {
-                  Value: app
-                },
                 Owner: {
                   Schema: {
                     Value: app
                   },
                   Name: {
                     Value: users
-                  },
-                  SchemaName: {
-                    Value: app
                   },
                   Value: app.users
                 },
@@ -110,18 +95,12 @@
                 Member: {
                   Value: name
                 },
-                SchemaName: {
-                  Value: app
-                },
                 Owner: {
                   Schema: {
                     Value: app
                   },
                   Name: {
                     Value: users
-                  },
-                  SchemaName: {
-                    Value: app
                   },
                   Value: app.users
                 },
@@ -140,9 +119,6 @@
               Value: users
             },
             Kind: Table,
-            SchemaName: {
-              Value: app
-            },
             Value: app.users
           },
           Name: {
@@ -169,18 +145,12 @@
                 Member: {
                   Value: id
                 },
-                SchemaName: {
-                  Value: app
-                },
                 Owner: {
                   Schema: {
                     Value: app
                   },
                   Name: {
                     Value: invoices
-                  },
-                  SchemaName: {
-                    Value: app
                   },
                   Value: app.invoices
                 },
@@ -210,18 +180,12 @@
                 Member: {
                   Value: amount
                 },
-                SchemaName: {
-                  Value: app
-                },
                 Owner: {
                   Schema: {
                     Value: app
                   },
                   Name: {
                     Value: invoices
-                  },
-                  SchemaName: {
-                    Value: app
                   },
                   Value: app.invoices
                 },
@@ -240,9 +204,6 @@
               Value: invoices
             },
             Kind: Table,
-            SchemaName: {
-              Value: app
-            },
             Value: app.invoices
           },
           Name: {
@@ -264,9 +225,6 @@
               Name: {
                 Value: users
               },
-              SchemaName: {
-                Value: app
-              },
               Value: app.users
             }
           ],
@@ -279,9 +237,6 @@
               Value: active_users
             },
             Kind: View,
-            SchemaName: {
-              Value: app
-            },
             Value: app.active_users
           },
           Name: {
@@ -302,9 +257,6 @@
               Name: {
                 Value: invoices
               },
-              SchemaName: {
-                Value: app
-              },
               Value: app.invoices
             }
           ],
@@ -317,9 +269,6 @@
               Value: invoice_totals
             },
             Kind: View,
-            SchemaName: {
-              Value: app
-            },
             Value: app.invoice_totals
           },
           Name: {
@@ -335,9 +284,6 @@
     {
       Address: {
         Name: {
-          Value: reporting
-        },
-        SchemaName: {
           Value: reporting
         },
         Value: reporting
@@ -364,18 +310,12 @@
                 Member: {
                   Value: day
                 },
-                SchemaName: {
-                  Value: reporting
-                },
                 Owner: {
                   Schema: {
                     Value: reporting
                   },
                   Name: {
                     Value: daily_totals
-                  },
-                  SchemaName: {
-                    Value: reporting
                   },
                   Value: reporting.daily_totals
                 },
@@ -394,9 +334,6 @@
               Value: daily_totals
             },
             Kind: Table,
-            SchemaName: {
-              Value: reporting
-            },
             Value: reporting.daily_totals
           },
           Name: {
@@ -418,9 +355,6 @@
               Name: {
                 Value: daily_totals
               },
-              SchemaName: {
-                Value: reporting
-              },
               Value: reporting.daily_totals
             }
           ],
@@ -433,9 +367,6 @@
               Value: weekly_rollup
             },
             Kind: View,
-            SchemaName: {
-              Value: reporting
-            },
             Value: reporting.weekly_rollup
           },
           Name: {

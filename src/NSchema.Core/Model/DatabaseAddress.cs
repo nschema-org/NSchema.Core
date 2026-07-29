@@ -21,9 +21,6 @@ public sealed record DatabaseAddress(SqlIdentifier Name, DatabaseObjectKind Kind
     public static DatabaseAddress Extension(SqlIdentifier name) => new(name, DatabaseObjectKind.Extension);
 
     /// <inheritdoc />
-    public override SqlIdentifier? SchemaName => Kind == DatabaseObjectKind.Schema ? Name : null;
-
-    /// <inheritdoc />
     protected override IReadOnlyList<SqlIdentifier> Path => [Name];
 
     // Only a schema holds objects; an extension is a leaf.

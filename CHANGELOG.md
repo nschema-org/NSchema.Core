@@ -95,7 +95,6 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Ephemeral state.** `UseEphemeralState()` registers an in-memory state store, which serves as the lock too, intended for disposable databases.
 - **Object-granular targeting.** `PlanningScope` covers a single list of `Address`es (`PlanningScope.To(addresses)` / `scope.Addresses`), mixing whole-schema and object-level targets.
 - **Address parsing.** `NsqlReader.ReadAddress` parses a `schema`, `schema.object`, or `schema.object.member` fragment into an `Address`, resolving quoted segments
-- **`SchemaAddress` completes the address taxonomy.** A schema has a first-class `Address` alongside `ObjectAddress` and `MemberAddress`.
 - **Address containment.** `Address.Covers(other)` expresses downward containment (a schema covers its objects and members; an object covers its members).
 - **Scope and identity are address-based.** `PlanningScope` is scoped when it holds any address (schema or object).
 - **`ObjectAddress` carries an optional `Kind`.** A null kind addresses every kind sharing the name (kind-free targeting); a set kind disambiguates same-named objects.
@@ -112,6 +111,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 ### Removed
 
+- `Address.SchemaName`. An address answers where it sits through its own components.
 - `PRE|POST DEPLOYMENT '<name>' AS $$…$$;` and `MIGRATION ['<name>'] FOR <event> <path> AS $$…$$;` no longer parse.
 - The `DROP` statements (`DROP SCHEMA|TABLE|VIEW|ENUM|DOMAIN|TYPE|SEQUENCE|FUNCTION|PROCEDURE|ROUTINE|EXTENSION`) no longer parse. Remove the declaration instead.
 - `CREATE PARTIAL SCHEMA` no longer parses. The managed identity set covers what it was reaching for: an object the state does not record as managed is never dropped, declared or not.

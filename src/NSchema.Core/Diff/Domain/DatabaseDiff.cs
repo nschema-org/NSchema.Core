@@ -318,6 +318,14 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
         objects.Where(o => o.Kind == ChangeKind.Remove)
             .Select(o => new DependencyNode(new ObjectAddress(schema, o.Name), kind));
 
+    // Every dependency node names an object or one of its members, so a severed one always sits in a schema.
+    private static SqlIdentifier SchemaOf(Address address) => address switch
+    {
+        ObjectAddress o => o.Schema,
+        MemberAddress m => m.Schema,
+        _ => throw new ArgumentOutOfRangeException(nameof(address), address, "A dependency node is not schema-scoped."),
+    };
+
     /// <summary>
     /// Folds the severed nodes back in as changes to the schemas they live in.
     /// </summary>
@@ -330,14 +338,7 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
     {
         var schemas = diff.Schemas.ToList();
 
-        var schemaScoped = new List<(SqlIdentifier Schema, DependencyNode Node)>();
-        foreach (var node in severed)
-        {
-            if (node.Address.SchemaName is { } schemaName)
-            {
-                schemaScoped.Add((schemaName, node));
-            }
-        }
+        var schemaScoped = severed.Select(node => (Schema: SchemaOf(node.Address), Node: node));
 
         foreach (var bySchema in schemaScoped.GroupBy(x => x.Schema, x => x.Node))
         {

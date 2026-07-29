@@ -8,9 +8,6 @@
         Name: {
           Value: app
         },
-        SchemaName: {
-          Value: app
-        },
         Value: app
       },
       Tables: [
@@ -26,9 +23,6 @@
               Value: users
             },
             Kind: Table,
-            SchemaName: {
-              Value: app
-            },
             Value: app.users
           },
           Name: {
@@ -59,18 +53,12 @@
                   Member: {
                     Value: legacy_flag
                   },
-                  SchemaName: {
-                    Value: app
-                  },
                   Owner: {
                     Schema: {
                       Value: app
                     },
                     Name: {
                       Value: users
-                    },
-                    SchemaName: {
-                      Value: app
                     },
                     Value: app.users
                   },
@@ -104,18 +92,12 @@
                   Member: {
                     Value: id
                   },
-                  SchemaName: {
-                    Value: app
-                  },
                   Owner: {
                     Schema: {
                       Value: app
                     },
                     Name: {
                       Value: users
-                    },
-                    SchemaName: {
-                      Value: app
                     },
                     Value: app.users
                   },
@@ -161,18 +143,12 @@
                   Member: {
                     Value: email_address
                   },
-                  SchemaName: {
-                    Value: app
-                  },
                   Owner: {
                     Schema: {
                       Value: app
                     },
                     Name: {
                       Value: users
-                    },
-                    SchemaName: {
-                      Value: app
                     },
                     Value: app.users
                   },
@@ -224,18 +200,12 @@
                   Member: {
                     Value: email_upper
                   },
-                  SchemaName: {
-                    Value: app
-                  },
                   Owner: {
                     Schema: {
                       Value: app
                     },
                     Name: {
                       Value: users
-                    },
-                    SchemaName: {
-                      Value: app
                     },
                     Value: app.users
                   },
@@ -287,18 +257,12 @@
                   Member: {
                     Value: users_email_ix
                   },
-                  SchemaName: {
-                    Value: app
-                  },
                   Owner: {
                     Schema: {
                       Value: app
                     },
                     Name: {
                       Value: users
-                    },
-                    SchemaName: {
-                      Value: app
                     },
                     Value: app.users
                   },
@@ -332,18 +296,12 @@
                   Member: {
                     Value: users_email_uq
                   },
-                  SchemaName: {
-                    Value: app
-                  },
                   Owner: {
                     Schema: {
                       Value: app
                     },
                     Name: {
                       Value: users
-                    },
-                    SchemaName: {
-                      Value: app
                     },
                     Value: app.users
                   },
@@ -375,18 +333,12 @@
                   Member: {
                     Value: users_id_chk
                   },
-                  SchemaName: {
-                    Value: app
-                  },
                   Owner: {
                     Schema: {
                       Value: app
                     },
                     Name: {
                       Value: users
-                    },
-                    SchemaName: {
-                      Value: app
                     },
                     Value: app.users
                   },
@@ -426,18 +378,12 @@
                   Member: {
                     Value: users_span_excl
                   },
-                  SchemaName: {
-                    Value: app
-                  },
                   Owner: {
                     Schema: {
                       Value: app
                     },
                     Name: {
                       Value: users
-                    },
-                    SchemaName: {
-                      Value: app
                     },
                     Value: app.users
                   },
@@ -464,9 +410,6 @@
               Value: active_users
             },
             Kind: View,
-            SchemaName: {
-              Value: app
-            },
             Value: app.active_users
           },
           Name: {
@@ -486,9 +429,6 @@
                 Name: {
                   Value: users
                 },
-                SchemaName: {
-                  Value: app
-                },
                 Value: app.users
               }
             ],
@@ -501,9 +441,6 @@
                 Value: active_users
               },
               Kind: View,
-              SchemaName: {
-                Value: app
-              },
               Value: app.active_users
             },
             Name: {
@@ -525,9 +462,6 @@
               Value: old_summary
             },
             Kind: View,
-            SchemaName: {
-              Value: app
-            },
             Value: app.old_summary
           },
           Name: {
@@ -549,9 +483,6 @@
               Value: report
             },
             Kind: View,
-            SchemaName: {
-              Value: app
-            },
             Value: app.report
           },
           Name: {
@@ -576,9 +507,6 @@
               Value: user_emails
             },
             Kind: View,
-            SchemaName: {
-              Value: app
-            },
             Value: app.user_emails
           },
           Name: {
@@ -597,9 +525,6 @@
                 Name: {
                   Value: active_users
                 },
-                SchemaName: {
-                  Value: app
-                },
                 Value: app.active_users
               }
             ],
@@ -612,9 +537,6 @@
                 Value: user_emails
               },
               Kind: View,
-              SchemaName: {
-                Value: app
-              },
               Value: app.user_emails
             },
             Name: {
@@ -638,9 +560,6 @@
               Value: order_status
             },
             Kind: Enum,
-            SchemaName: {
-              Value: app
-            },
             Value: app.order_status
           },
           Name: {
@@ -692,9 +611,6 @@
               Value: priority
             },
             Kind: Enum,
-            SchemaName: {
-              Value: app
-            },
             Value: app.priority
           },
           Name: {
@@ -718,9 +634,6 @@
               Value: severity
             },
             Kind: Enum,
-            SchemaName: {
-              Value: app
-            },
             Value: app.severity
           },
           Name: {
@@ -744,9 +657,6 @@
                 Value: severity
               },
               Kind: Enum,
-              SchemaName: {
-                Value: app
-              },
               Value: app.severity
             },
             Name: {
@@ -767,9 +677,6 @@
               Value: stale_enum
             },
             Kind: Enum,
-            SchemaName: {
-              Value: app
-            },
             Value: app.stale_enum
           },
           Name: {
@@ -792,9 +699,6 @@
               Value: batch_id
             },
             Kind: Sequence,
-            SchemaName: {
-              Value: app
-            },
             Value: app.batch_id
           },
           Name: {
@@ -813,9 +717,6 @@
                 Value: batch_id
               },
               Kind: Sequence,
-              SchemaName: {
-                Value: app
-              },
               Value: app.batch_id
             },
             Name: {
@@ -835,9 +736,6 @@
               Value: order_id
             },
             Kind: Sequence,
-            SchemaName: {
-              Value: app
-            },
             Value: app.order_id
           },
           Name: {
@@ -869,9 +767,6 @@
               Value: stale_seq
             },
             Kind: Sequence,
-            SchemaName: {
-              Value: app
-            },
             Value: app.stale_seq
           },
           Name: {
@@ -893,9 +788,6 @@
               Value: add_tax
             },
             Kind: Routine,
-            SchemaName: {
-              Value: app
-            },
             Value: app.add_tax
           },
           Name: {
@@ -918,9 +810,6 @@
                 Value: add_tax
               },
               Kind: Routine,
-              SchemaName: {
-                Value: app
-              },
               Value: app.add_tax
             },
             Name: {
@@ -941,9 +830,6 @@
               Value: archive
             },
             Kind: Routine,
-            SchemaName: {
-              Value: app
-            },
             Value: app.archive
           },
           Name: {
@@ -967,9 +853,6 @@
                 Value: archive
               },
               Kind: Routine,
-              SchemaName: {
-                Value: app
-              },
               Value: app.archive
             },
             Name: {
@@ -990,9 +873,6 @@
               Value: brand_new
             },
             Kind: Routine,
-            SchemaName: {
-              Value: app
-            },
             Value: app.brand_new
           },
           Name: {
@@ -1014,9 +894,6 @@
                 Value: brand_new
               },
               Kind: Routine,
-              SchemaName: {
-                Value: app
-              },
               Value: app.brand_new
             },
             Name: {
@@ -1037,9 +914,6 @@
               Value: score
             },
             Kind: Routine,
-            SchemaName: {
-              Value: app
-            },
             Value: app.score
           },
           Name: {
@@ -1062,9 +936,6 @@
                 Value: score
               },
               Kind: Routine,
-              SchemaName: {
-                Value: app
-              },
               Value: app.score
             },
             Name: {
@@ -1093,9 +964,6 @@
               Value: stale_fn
             },
             Kind: Routine,
-            SchemaName: {
-              Value: app
-            },
             Value: app.stale_fn
           },
           Name: {
@@ -1118,9 +986,6 @@
               Value: code
             },
             Kind: Domain,
-            SchemaName: {
-              Value: app
-            },
             Value: app.code
           },
           Name: {
@@ -1144,9 +1009,6 @@
                 Value: code
               },
               Kind: Domain,
-              SchemaName: {
-                Value: app
-              },
               Value: app.code
             },
             Name: {
@@ -1180,9 +1042,6 @@
               Value: postal_code
             },
             Kind: Domain,
-            SchemaName: {
-              Value: app
-            },
             Value: app.postal_code
           },
           Name: {
@@ -1204,9 +1063,6 @@
                 Value: postal_code
               },
               Kind: Domain,
-              SchemaName: {
-                Value: app
-              },
               Value: app.postal_code
             },
             Name: {
@@ -1227,9 +1083,6 @@
               Value: stale_domain
             },
             Kind: Domain,
-            SchemaName: {
-              Value: app
-            },
             Value: app.stale_domain
           },
           Name: {
@@ -1252,9 +1105,6 @@
               Value: address
             },
             Kind: CompositeType,
-            SchemaName: {
-              Value: app
-            },
             Value: app.address
           },
           Name: {
@@ -1316,9 +1166,6 @@
               Value: coords
             },
             Kind: CompositeType,
-            SchemaName: {
-              Value: app
-            },
             Value: app.coords
           },
           Name: {
@@ -1360,9 +1207,6 @@
                 Value: coords
               },
               Kind: CompositeType,
-              SchemaName: {
-                Value: app
-              },
               Value: app.coords
             },
             Name: {
@@ -1382,9 +1226,6 @@
               Value: stale_type
             },
             Kind: CompositeType,
-            SchemaName: {
-              Value: app
-            },
             Value: app.stale_type
           },
           Name: {
@@ -1402,9 +1243,6 @@
         Name: {
           Value: reporting
         },
-        SchemaName: {
-          Value: reporting
-        },
         Value: reporting
       },
       Kind: Add,
@@ -1418,9 +1256,6 @@
       },
       Address: {
         Name: {
-          Value: scratch
-        },
-        SchemaName: {
           Value: scratch
         },
         Value: scratch
@@ -1439,9 +1274,6 @@
               Value: temp_data
             },
             Kind: Table,
-            SchemaName: {
-              Value: scratch
-            },
             Value: scratch.temp_data
           },
           Name: {
@@ -1463,9 +1295,6 @@
               Value: temp_summary
             },
             Kind: View,
-            SchemaName: {
-              Value: scratch
-            },
             Value: scratch.temp_summary
           },
           Name: {
@@ -1489,9 +1318,6 @@
               Value: temp_status
             },
             Kind: Enum,
-            SchemaName: {
-              Value: scratch
-            },
             Value: scratch.temp_status
           },
           Name: {
@@ -1514,9 +1340,6 @@
               Value: temp_seq
             },
             Kind: Sequence,
-            SchemaName: {
-              Value: scratch
-            },
             Value: scratch.temp_seq
           },
           Name: {

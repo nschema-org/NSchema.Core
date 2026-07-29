@@ -14,12 +14,6 @@ public abstract record Address
     public virtual string Value => string.Join('.', Path);
 
     /// <summary>
-    /// The schema this address belongs to, or <see langword="null"/> when it names something database-global.
-    /// </summary>
-    [JsonIgnore]
-    public abstract SqlIdentifier? SchemaName { get; }
-
-    /// <summary>
     /// The names leading from the database down to what this addresses.
     /// </summary>
     [JsonIgnore]
