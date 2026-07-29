@@ -23,7 +23,7 @@ public sealed class DoctorOperationTests
     private Task<Result<DoctorResult>> Run(DoctorOperation sut) => sut.Execute(new DoctorArguments(), TestContext.Current.CancellationToken);
 
     [Fact]
-    public async Task Run_WhenNothingConfigured_ReportsNeutralAndPasses()
+    public async Task Run_WhenNothingConfigured_ReportsTheMissingStoreAsUnhealthy()
     {
         // Arrange
         var sut = BuildSut(online: null, store: null);
@@ -31,13 +31,9 @@ public sealed class DoctorOperationTests
         // Act
         var result = await Run(sut);
 
-        // Assert — the neutral findings are carried back, and with no errors the result is a success.
-        result.Value!.HasErrors.ShouldBeFalse();
-        result.Value!.Checks.Select(d => d.Message).ShouldBe(
-        [
-            "Database: not configured (offline mode).",
-            "State store: not configured (offline planning unavailable).",
-        ]);
+        // Assert — a missing database is a mode, but a missing store leaves nothing plannable.
+        result.Value!.HasErrors.ShouldBeTrue();
+        result.Value!.Checks.Select(d => d.Severity).ShouldBe([DiagnosticSeverity.Info, DiagnosticSeverity.Error]);
     }
 
     [Fact]
@@ -59,7 +55,7 @@ public sealed class DoctorOperationTests
     {
         // Arrange
         var schema = new Database { Schemas = [new Schema { Name = "app" }, new Schema { Name = "billing" }] };
-        var sut = BuildSut(online: new InMemoryIntrospector(schema));
+        var sut = BuildSut(online: new InMemoryIntrospector(schema), store: new RecordingStateStore());
 
         // Act
         var result = await Run(sut);
@@ -73,7 +69,9 @@ public sealed class DoctorOperationTests
     public async Task Run_WhenDatabaseUnreachable_ReportsAndFails()
     {
         // Arrange
-        var sut = BuildSut(online: new ThrowingIntrospector(new InvalidOperationException("connection refused")));
+        var sut = BuildSut(
+            online: new ThrowingIntrospector(new InvalidOperationException("connection refused")),
+            store: new RecordingStateStore());
 
         // Act
         var result = await Run(sut);

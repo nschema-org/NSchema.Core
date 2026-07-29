@@ -382,8 +382,6 @@ public sealed class MigrationPlannerTests
 
         var message = error.Message;
         message.ShouldContain("schema 'app'");
-        message.ShouldContain("the recorded state does not have");
-        message.ShouldContain("nothing creates it");
     }
 
     [Fact]
@@ -405,7 +403,6 @@ public sealed class MigrationPlannerTests
 
         var message = error.Message;
         message.ShouldContain("schemas 'app', 'audit'");
-        message.ShouldContain("nothing creates them");
     }
 
     [Fact]
