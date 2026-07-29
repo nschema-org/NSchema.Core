@@ -90,6 +90,8 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 ### Added
 
+- **A diagnostic collection folds to a result.** `ToResult()` and `ToResult(value)` move onto `DiagnosticCollection<TDiagnostic>`, so accumulating findings and returning them needs no collector. A collection can also be built from a collection expression.
+- **A typed result lifts like a plain one.** `Result<TValue, TDiagnostic>` converts implicitly from a value and from a single diagnostic, and a value-less `Result` converts from a diagnostic — so a method returns one directly instead of naming the result type to construct it.
 - **`SqlDialect.CanAlterForeignKeys`.** A dialect states whether a foreign key can be added to, or dropped from, a table that already exists. One that cannot (SQLite) keeps every key on the `CREATE TABLE` that declares it, and the plan never separates one from its table.
 - **The comparison seam is the `SqlEquivalence` class.** A provider can register (`UseSqlEquivalence<T>()`) one equality comparer per comparison context, deciding when two spellings mean the same thing. The neutral base compares types structurally and defaults on cosmetics-normalized text.
 - **Default expressions are `SqlDefaultExpression` now.** `Column.DefaultExpression` and `DomainType.Default` graduate from `SqlText` to their own value object, so equivalence rules register against the specific context.

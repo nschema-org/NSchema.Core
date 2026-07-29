@@ -37,12 +37,12 @@ internal sealed class MigrationPlanner(
         var diagnostics = new DiagnosticCollector();
 
         // Validate the declared project.
-        diagnostics.Add(Validate(project));
+        diagnostics.AddRange(Validate(project));
 
         // Identifiers are case-sensitive, so a declared name matching reality only up to case is a different
         // object — almost always a misspelled adoption. Warn before the diff turns it into a create beside
         // the existing object.
-        diagnostics.Add(Result.From(CaseMismatches(current.Database.Identities(), project.Database.Identities())));
+        diagnostics.AddRange(Result.From(CaseMismatches(current.Database.Identities(), project.Database.Identities())));
 
         // The plan converges what NSchema manages: the current side is the observation restricted to the
         // managed identities plus everything the project declares or addresses.
@@ -56,13 +56,13 @@ internal sealed class MigrationPlanner(
         var diff = diagnostics.Require(compared.ScopedTo(scope, current.Database));
 
         // Checked after scoping: a container out of scope holds nothing this run creates.
-        diagnostics.Add(Result.From(MissingSchemas(diff, current.Database)));
+        diagnostics.AddRange(Result.From(MissingSchemas(diff, current.Database)));
 
         var dependencies = new PlanDependencies(current.Database, project.Database);
         var plan = Realize(diff, dependencies, dialect, ManagedAfterApply(current, project, scope), diagnostics);
 
         // Validate the complete plan — post-render, so policies see exactly what an apply would execute.
-        diagnostics.Add(planPolicies.SelectMany(p => p.Validate(plan)));
+        diagnostics.AddRange(planPolicies.SelectMany(p => p.Validate(plan)));
 
         return diagnostics.ToResult(plan);
     }

@@ -29,7 +29,7 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
         async Task Import(string path, Database partition, bool declareSchemas)
         {
             var wrote = await WritePartition(path, partition, declareSchemas, cancellationToken);
-            diagnostics.Add(wrote);
+            diagnostics.AddRange(wrote);
             if (wrote.IsSuccess)
             {
                 written.Add(path);

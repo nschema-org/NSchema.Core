@@ -21,7 +21,7 @@ public sealed class DiagnosticCollectionTests
 
         // Act
         _sut.Add(warning);
-        _sut.Add([error]);
+        _sut.AddRange([error]);
 
         // Assert
         _sut.ShouldBe([warning, error]);
@@ -60,7 +60,7 @@ public sealed class DiagnosticCollectionTests
         var info = Info();
         var warning = Warning();
         var error = Error();
-        _sut.Add([info, warning, error]);
+        _sut.AddRange([info, warning, error]);
 
         // Act & Assert
         _sut.Errors.ShouldBe([error]);
@@ -73,7 +73,7 @@ public sealed class DiagnosticCollectionTests
         // Arrange
         var info = Info();
         var warning = Warning();
-        _sut.Add([info, warning, Error()]);
+        _sut.AddRange([info, warning, Error()]);
 
         // Act
         _sut.Demote(DiagnosticSeverity.Warning);
