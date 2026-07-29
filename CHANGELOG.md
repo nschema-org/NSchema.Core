@@ -91,6 +91,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 ### Added
 
+- **A diagnostic's source is a `DiagnosticSource`.** The producer's name is typed rather than a bare string, and holds to the same shape as a code — a user groups and configures by it, so it has to be usable as a settings key too.
 - **A diagnostic carries a code.** `Diagnostic.Code` names a finding independently of how it is worded, so a message can be reworded without breaking anything that refers to it. A code is restricted to hyphen-separated lowercase words, so it is usable as a settings key, and an invalid one is rejected rather than rewritten. Every code is unique across NSchema — the producer is not always known at compile time, so the code alone addresses a finding.
 - **A diagnostic collection folds to a result.** `ToResult()` and `ToResult(value)` move onto `DiagnosticCollection<TDiagnostic>`, so accumulating findings and returning them needs no collector. A collection can also be built from a collection expression.
 - **A typed result lifts like a plain one.** `Result<TValue, TDiagnostic>` converts implicitly from a value and from a single diagnostic, and a value-less `Result` converts from a diagnostic — so a method returns one directly instead of naming the result type to construct it.

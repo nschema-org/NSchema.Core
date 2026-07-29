@@ -8,7 +8,7 @@ namespace NSchema.Project.Nsql;
 /// <param name="Text">A descriptive message about the finding, with its merged values marked.</param>
 /// <param name="Severity">The severity of the finding.</param>
 /// <param name="Position">The position in the source where the finding was detected.</param>
-public sealed record NsqlDiagnostic(string Source, DiagnosticCode Code, FormattedText Text, DiagnosticSeverity Severity, SourcePosition Position)
+public sealed record NsqlDiagnostic(DiagnosticSource Source, DiagnosticCode Code, FormattedText Text, DiagnosticSeverity Severity, SourcePosition Position)
     : Diagnostic(Source, Code, Text, Severity)
 {
     /// <summary>

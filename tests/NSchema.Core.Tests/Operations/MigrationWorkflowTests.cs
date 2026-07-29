@@ -98,7 +98,7 @@ public sealed class MigrationWorkflowTests
     public async Task Validate_PolicyViolation_ReturnsErrorFindings_WithoutReporting()
     {
         // Arrange
-        _planner.Validate(Arg.Any<ProjectDefinition>()).Returns(Result.From(Diagnostic.Error("P1", "msg", "msg")));
+        _planner.Validate(Arg.Any<ProjectDefinition>()).Returns(Result.From(Diagnostic.Error("p1", "msg", "msg")));
 
         // Act
         var findings = await _sut.Validate(TestContext.Current.CancellationToken);
@@ -113,7 +113,7 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         _planner.Validate(Arg.Any<ProjectDefinition>())
-            .Returns(Result.From(new Diagnostic("P1", "policy-finding", "info", DiagnosticSeverity.Info)));
+            .Returns(Result.From(new Diagnostic("p1", "policy-finding", "info", DiagnosticSeverity.Info)));
 
         // Act
         var findings = await _sut.Validate(TestContext.Current.CancellationToken);
@@ -333,14 +333,14 @@ public sealed class MigrationWorkflowTests
         var project = Result.From(TestProjects.Project(new Database { Schemas = [] }), [Diagnostic.Warning("deprecations", "old-form", "old form")]);
         _projectProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>()).Returns(project);
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>())
-            .Returns(Result.Failure<MigrationPlan>([Diagnostic.Error("P1", "blocked", "blocked")]));
+            .Returns(Result.Failure<MigrationPlan>([Diagnostic.Error("p1", "blocked", "blocked")]));
 
         // Act
         var result = await _sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
-        result.Diagnostics.Select(d => d.Source).ShouldBe(["deprecations", "P1"]);
+        result.Diagnostics.Select(d => d.Source).ShouldBe(["deprecations", "p1"]);
     }
 
     private static Script SeedScript(RunCondition condition = RunCondition.Once) =>
@@ -583,7 +583,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_PolicyViolation_ReturnsErrors_WithoutThrowingOrReporting()
     {
         // Arrange
-        var errors = new[] { Diagnostic.Error("P1", "msg", "msg") };
+        var errors = new[] { Diagnostic.Error("p1", "msg", "msg") };
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>())
             .Returns(Result.Failure<MigrationPlan>(errors));
 
@@ -617,7 +617,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_CarriesNonErrorDiagnostics_WithoutReporting()
     {
         // Arrange
-        var diagnostics = new[] { new Diagnostic("P1", "policy-finding", "info", DiagnosticSeverity.Info) };
+        var diagnostics = new[] { new Diagnostic("p1", "policy-finding", "info", DiagnosticSeverity.Info) };
         var plan = EmptyPlan();
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>())
             .Returns(Result.From(plan, diagnostics));

@@ -97,7 +97,7 @@ public sealed class MigrationPlannerTests
         // Arrange
         var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = "app" }] });
         var policy = Substitute.For<IProjectPolicy>();
-        policy.Validate(desired).Returns([Diagnostic.Error("Test", "bad-schema", "bad schema")]);
+        policy.Validate(desired).Returns([Diagnostic.Error("test", "bad-schema", "bad schema")]);
         _projectPolicies.Add(policy);
 
         // Act
@@ -113,7 +113,7 @@ public sealed class MigrationPlannerTests
     {
         // Arrange
         var policy = Substitute.For<IProjectPolicy>();
-        policy.Validate(Arg.Any<ProjectDefinition>()).Returns([Diagnostic.Error("Test", "bad-schema", "bad schema")]);
+        policy.Validate(Arg.Any<ProjectDefinition>()).Returns([Diagnostic.Error("test", "bad-schema", "bad schema")]);
         _projectPolicies.Add(policy);
 
         // Act
@@ -132,7 +132,7 @@ public sealed class MigrationPlannerTests
         // Arrange
         var policy = Substitute.For<IProjectPolicy>();
         policy.Validate(Arg.Any<ProjectDefinition>())
-            .Returns([new Diagnostic("Test", "policy-finding", "lint", DiagnosticSeverity.Warning)]);
+            .Returns([new Diagnostic("test", "policy-finding", "lint", DiagnosticSeverity.Warning)]);
         _projectPolicies.Add(policy);
 
         // Act
@@ -292,7 +292,7 @@ public sealed class MigrationPlannerTests
         var diff = _emptyDiff with { DeploymentScripts = [new DeploymentScript("seed", "SELECT 1", null, DeploymentPhase.Post)] };
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
         var policy = Substitute.For<IPlanPolicy>();
-        policy.Validate(Arg.Is<MigrationPlan>(p => p!.Diff == diff)).Returns([Diagnostic.Error("Test", "destructive", "destructive")]);
+        policy.Validate(Arg.Is<MigrationPlan>(p => p!.Diff == diff)).Returns([Diagnostic.Error("test", "destructive", "destructive")]);
         _planPolicies.Add(policy);
 
         // Act
