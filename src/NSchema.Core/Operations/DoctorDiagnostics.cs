@@ -19,7 +19,7 @@ internal static class DoctorDiagnostics
     /// No database is configured, so the application is planning offline.
     /// </summary>
     public static Diagnostic DatabaseNotConfigured =>
-        Diagnostic.Info(DatabaseSource, "Database connection not available..");
+        Diagnostic.Info(DatabaseSource, "Database connection not available.");
 
     /// <summary>
     /// The database could not be introspected.
@@ -79,5 +79,5 @@ internal static class DoctorDiagnostics
     /// The state lock is held, which may be a legitimately-running operation rather than a misconfiguration.
     /// </summary>
     public static Diagnostic StateLockHeld(StateLockInfo info) =>
-        Diagnostic.Warning(StateLockSource, $"State is locked by by {info.Who} (operation '{info.Operation}', since {info.CreatedUtc:u}).");
+        Diagnostic.Warning(StateLockSource, $"State is locked by {info.Who} (operation '{info.Operation}', since {info.CreatedUtc:u}).");
 }

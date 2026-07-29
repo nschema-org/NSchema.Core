@@ -47,7 +47,7 @@ public sealed class DoctorOperationTests
 
         // Assert
         _stateLock.Peeks.ShouldBe(0);
-        result.Value!.Checks.ShouldNotContain(d => d.Message.StartsWith("State lock:"));
+        result.Value!.Checks.ShouldNotContain(d => d.Source == "state-lock");
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class DoctorOperationTests
 
         // Assert
         result.Value!.HasErrors.ShouldBeFalse();
-        result.Value!.Checks.Select(d => d.Message).ShouldContain("Database: connected (2 schemas visible).");
+        result.Value!.Checks.Select(d => d.Message).ShouldContain("Database connected (2 schemas visible).");
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class DoctorOperationTests
         // Assert — the failure is carried back as an error diagnostic, not thrown.
         result.Value!.HasErrors.ShouldBeTrue();
         result.Value!.Errors.ShouldHaveSingleItem().Message.ShouldSatisfyAllConditions(
-            m => m.ShouldContain("Database: unreachable"),
+            m => m.ShouldContain("Unable to reach the database"),
             m => m.ShouldContain("connection refused"));
     }
 
@@ -93,7 +93,7 @@ public sealed class DoctorOperationTests
         var result = await Run(sut);
 
         // Assert
-        result.Value!.Checks.Select(d => d.Message).ShouldContain("State store: reachable (no state recorded yet).");
+        result.Value!.Checks.Select(d => d.Message).ShouldContain("State store is empty (no state recorded yet).");
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class DoctorOperationTests
         var result = await Run(sut);
 
         // Assert
-        result.Value!.Checks.Select(d => d.Message).ShouldContain("State store: reachable, recorded state is valid.");
+        result.Value!.Checks.Select(d => d.Message).ShouldContain("The recorded state is valid.");
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class DoctorOperationTests
         // Assert
         result.Value!.HasErrors.ShouldBeTrue();
         result.Value!.Errors.ShouldHaveSingleItem().Message.ShouldSatisfyAllConditions(
-            m => m.ShouldContain("State store: unreachable"),
+            m => m.ShouldContain("Unable to reach the state store"),
             m => m.ShouldContain("bucket not found"));
     }
 
@@ -154,7 +154,7 @@ public sealed class DoctorOperationTests
         // Assert — a read-only peek: the lock is read, never acquired (which would momentarily contend).
         _stateLock.Peeks.ShouldBe(1);
         _stateLock.Acquisitions.ShouldBeEmpty();
-        result.Value!.Checks.Select(d => d.Message).ShouldContain("State lock: free.");
+        result.Value!.Checks.Select(d => d.Message).ShouldContain("State lock is not locked.");
     }
 
     [Fact]
@@ -170,7 +170,7 @@ public sealed class DoctorOperationTests
         // Assert — surfaced as a warning diagnostic, but the result is still a success.
         result.Value!.HasErrors.ShouldBeFalse();
         result.Value!.Checks.ShouldContain(d => d.Severity == DiagnosticSeverity.Warning
-            && d.Message.Contains("State lock: held by") && d.Message.Contains("tom@dev") && d.Message.Contains("apply"));
+            && d.Message.Contains("State is locked by") && d.Message.Contains("tom@dev") && d.Message.Contains("apply"));
     }
 
     [Fact]

@@ -76,8 +76,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
             var address = new ObjectAddress(definition.Name, collision.Key);
             diagnostics.Add(kinds.Distinct().Count() == 1
                 ? StructuralIntegrityDiagnostics.DuplicateObjectName(address, kinds[0])
-                : StructuralIntegrityDiagnostics.CollidingObjectName(address,
-                    string.Join(", ", kinds.OrderBy(k => k, StringComparer.Ordinal))));
+                : StructuralIntegrityDiagnostics.CollidingObjectName(address));
         }
     }
 

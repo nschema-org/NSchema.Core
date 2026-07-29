@@ -65,13 +65,13 @@ internal static class DiffDiagnostics
     /// A rename directive whose source is gone and whose target already exists.
     /// </summary>
     public static Diagnostic AppliedRename(string kind, Address address, SqlIdentifier to) => Diagnostic.Info("directives",
-        $"Rename of {kind:text} '{address}' has already been renamed to '{to}'.");
+        $"The {kind:text} '{address}' has already been renamed to '{to}'.");
 
     /// <summary>
     /// A rename whose previous name is still declared, which is indistinguishable from a retain-plus-create.
     /// </summary>
     public static Diagnostic AmbiguousRenameSourceStillDeclared(string kind, Address address, SqlIdentifier from) => Diagnostic.Error("directives",
-        $"Unable to rename of {kind:text} '{address}'. An object bearing the old name '{from}' is still declared.");
+        $"Unable to rename {kind:text} '{address}'. An object bearing the old name '{from}' is still declared.");
 
     /// <summary>
     /// A rename whose new name is already taken by another current entity.
