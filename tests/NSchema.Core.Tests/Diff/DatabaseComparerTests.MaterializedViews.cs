@@ -22,7 +22,7 @@ public partial class DatabaseComparerTests
         var diff = DiffViews([], [Matview("daily", "SELECT 1")]);
 
         // Assert
-        diff!.Kind.ShouldBe(ChangeKind.Add);
+        diff!.Change.ShouldBe(ChangeKind.Add);
         diff.IsMaterialized.ShouldBeTrue();
         diff.Definition!.IsMaterialized.ShouldBeTrue();
     }
@@ -35,7 +35,7 @@ public partial class DatabaseComparerTests
         var diff = DiffViews([Matview("daily", "SELECT 1")], [Matview("daily", "SELECT 2")]);
 
         // Assert
-        diff!.Kind.ShouldBe(ChangeKind.Modify);
+        diff!.Change.ShouldBe(ChangeKind.Modify);
         diff.RequiresRecreate.ShouldBeTrue();
         diff.Definition.ShouldNotBeNull();
     }
@@ -84,7 +84,7 @@ public partial class DatabaseComparerTests
 
         diff!.RequiresRecreate.ShouldBeFalse();
         diff.Definition.ShouldBeNull(); // body unchanged
-        diff.Indexes.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Add);
+        diff.Indexes.ShouldHaveSingleItem().Change.ShouldBe(ChangeKind.Add);
     }
 
     [Fact]
@@ -106,7 +106,7 @@ public partial class DatabaseComparerTests
         var diff = DiffViews([Matview("daily", "SELECT 1")], []);
 
         // Assert
-        diff!.Kind.ShouldBe(ChangeKind.Remove);
+        diff!.Change.ShouldBe(ChangeKind.Remove);
         diff.IsMaterialized.ShouldBeTrue();
     }
 }

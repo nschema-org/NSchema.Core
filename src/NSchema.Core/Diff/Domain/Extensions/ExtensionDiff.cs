@@ -8,7 +8,7 @@ namespace NSchema.Diff.Domain.Extensions;
 /// <summary>
 /// Describes a change to a database extension.
 /// </summary>
-public sealed record ExtensionDiff : IDatabaseElementDiff
+public sealed record ExtensionDiff : IDatabaseObjectDiff
 {
     [JsonConstructor]
     private ExtensionDiff() { }
@@ -27,7 +27,7 @@ public sealed record ExtensionDiff : IDatabaseElementDiff
     /// <summary>
     /// The change to the database extension.
     /// </summary>
-    public required ChangeKind Kind { get; init; }
+    public required ChangeKind Change { get; init; }
 
     /// <summary>
     /// The previous name when renamed; otherwise <see langword="null"/>.
@@ -53,7 +53,7 @@ public sealed record ExtensionDiff : IDatabaseElementDiff
     /// Whether this is a extension being installed, and so carries the <see cref="Definition"/> to create it from.
     /// </summary>
     [MemberNotNullWhen(true, nameof(Definition))]
-    public bool IsAdd() => Kind == ChangeKind.Add && Definition is not null;
+    public bool IsAdd() => Change == ChangeKind.Add && Definition is not null;
 
     /// <summary>
     /// A database extension being created, named by its own definition.
@@ -61,7 +61,7 @@ public sealed record ExtensionDiff : IDatabaseElementDiff
     public static ExtensionDiff Added(Extension definition) => new()
     {
         Name = definition.Name,
-        Kind = ChangeKind.Add,
+        Change = ChangeKind.Add,
         Definition = definition,
         Comment = ValueChange.Between(null, definition.Comment),
     };
@@ -70,11 +70,11 @@ public sealed record ExtensionDiff : IDatabaseElementDiff
     /// A database extension being dropped.
     /// </summary>
     public static ExtensionDiff Removed(SqlIdentifier name) =>
-        new() { Name = name, Kind = ChangeKind.Remove };
+        new() { Name = name, Change = ChangeKind.Remove };
 
     /// <summary>
     /// A database extension altered in place; the individual changes are set on the result.
     /// </summary>
     public static ExtensionDiff Modified(SqlIdentifier name) =>
-        new() { Name = name, Kind = ChangeKind.Modify };
+        new() { Name = name, Change = ChangeKind.Modify };
 }

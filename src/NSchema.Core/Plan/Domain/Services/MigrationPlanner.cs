@@ -98,10 +98,10 @@ internal sealed class MigrationPlanner(
         var observed = current.Schemas.Select(s => s.Name).ToHashSet();
 
         var missing = diff.Schemas
-            .Where(schema => schema.Kind != ChangeKind.Add
+            .Where(schema => schema.Change != ChangeKind.Add
                 && schema.RenamedFrom is null
                 && !observed.Contains(schema.Name)
-                && schema.EnumerateObjects().Any(o => o.Kind == ChangeKind.Add))
+                && schema.EnumerateObjects().Any(o => o.Change == ChangeKind.Add))
             .Select(schema => schema.Name)
             .ToList();
 

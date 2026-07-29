@@ -116,12 +116,12 @@ public sealed class DatabaseDiffTests
 
         // Assert
         var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
-        billing.Kind.ShouldBeNull(); // the run is not about billing; it just cannot avoid it
+        billing.Change.ShouldBe(ChangeKind.Touched); // the run is not about billing; it just cannot avoid it
         var orders = billing.Tables.ShouldHaveSingleItem();
-        orders.Kind.ShouldBe(ChangeKind.Modify);
+        orders.Change.ShouldBe(ChangeKind.Modify);
         orders.ForeignKeys.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
             f => f.Name.ShouldBe("fk_orders_user"),
-            f => f.Kind.ShouldBe(ChangeKind.Remove));
+            f => f.Change.ShouldBe(ChangeKind.Remove));
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public sealed class DatabaseDiffTests
         var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
         billing.Views.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
             v => v.Name.ShouldBe("summary"),
-            v => v.Kind.ShouldBe(ChangeKind.Remove));
+            v => v.Change.ShouldBe(ChangeKind.Remove));
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public sealed class DatabaseDiffTests
 
         // Assert
         var app = result.Value!.Schemas.Single(s => s.Name == "app");
-        app.Kind.ShouldBe(ChangeKind.Remove);
+        app.Change.ShouldBe(ChangeKind.Remove);
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
     }
 
@@ -272,10 +272,10 @@ public sealed class DatabaseDiffTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
-        billing.Kind.ShouldBeNull();
+        billing.Change.ShouldBe(ChangeKind.Touched);
         billing.Domains.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
             d => d.Name.ShouldBe("tracked_status"),
-            d => d.Kind.ShouldBe(ChangeKind.Remove));
+            d => d.Change.ShouldBe(ChangeKind.Remove));
         result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
             DiffDiagnostics.SeveredOutOfScope([new ObjectAddress("billing", "tracked_status")]));
     }
@@ -489,7 +489,7 @@ public sealed class DatabaseDiffTests
 
         // Assert
         var app = result.Value!.Schemas.ShouldHaveSingleItem();
-        app.Kind.ShouldBe(ChangeKind.Add);
+        app.Change.ShouldBe(ChangeKind.Add);
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
     }
 
@@ -502,12 +502,12 @@ public sealed class DatabaseDiffTests
 
         // Assert
         var app = result.Value!.Schemas.Single(s => s.Name == "app");
-        app.Kind.ShouldBeNull(); // the container is not covered, so it is not removed
+        app.Change.ShouldBe(ChangeKind.Touched); // the container is not covered, so it is not removed
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
 
         var billing = result.Value.Schemas.Single(s => s.Name == "billing");
-        billing.Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
-        billing.Views.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        billing.Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem().Change.ShouldBe(ChangeKind.Remove);
+        billing.Views.ShouldHaveSingleItem().Change.ShouldBe(ChangeKind.Remove);
         result.Diagnostics.Count.ShouldBe(2);
     }
 
@@ -521,8 +521,8 @@ public sealed class DatabaseDiffTests
 
         // Assert
         var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
-        billing.Tables.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
-        billing.Views.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        billing.Tables.ShouldHaveSingleItem().Change.ShouldBe(ChangeKind.Remove);
+        billing.Views.ShouldHaveSingleItem().Change.ShouldBe(ChangeKind.Remove);
         result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
             DiffDiagnostics.InferredSeveredOutOfScope([new ObjectAddress("billing", "summary")]));
     }

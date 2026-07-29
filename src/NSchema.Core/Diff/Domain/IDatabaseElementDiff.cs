@@ -15,7 +15,7 @@ public interface IDatabaseElementDiff
     /// <summary>
     /// How the thing changed.
     /// </summary>
-    ChangeKind Kind { get; }
+    ChangeKind Change { get; }
 
     /// <summary>
     /// The change to the thing's comment, if any.

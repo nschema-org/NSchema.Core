@@ -61,7 +61,7 @@ public sealed class ProjectComparerTests
         var diff = Sut.Compare(new CurrentState(current), new ProjectDefinition(desired)).Require();
 
         // Assert
-        diff.Schemas.Select(x => (x.Name.Value, x.Kind)).ShouldBe(
+        diff.Schemas.Select(x => (x.Name.Value, x.Change)).ShouldBe(
             [("fresh", ChangeKind.Add), ("gone", ChangeKind.Remove)], ignoreOrder: true);
     }
 
@@ -209,7 +209,7 @@ public sealed class ProjectComparerTests
         var diff = Sut.Compare(current, new ProjectDefinition(new Database())).Require();
 
         // Assert
-        diff.Schemas.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        diff.Schemas.ShouldHaveSingleItem().Change.ShouldBe(ChangeKind.Remove);
         diff.AllScripts().ShouldBeEmpty();
     }
 

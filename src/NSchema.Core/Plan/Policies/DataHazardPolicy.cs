@@ -41,7 +41,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
         // so hazards exist nowhere else.
         foreach (var schema in diff.Schemas)
         {
-            foreach (var table in schema.Tables.Where(t => t.Kind == ChangeKind.Modify))
+            foreach (var table in schema.Tables.Where(t => t.Change == ChangeKind.Modify))
             {
                 foreach (var hazard in TableHazards(table, severity))
                 {
@@ -59,12 +59,12 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
 
             // Identity and generated columns compute their own values for existing rows, so only a plain required column with no default can fail the add.
             // A matched backfill migration handles the transition (the planner decomposes the add around it), so it silences this hazard.
-            if (column is { Kind: ChangeKind.Add, Definition: { IsNullable: false, DefaultExpression: null, IsIdentity: false, GeneratedExpression: null }, MigrationScript: null })
+            if (column is { Change: ChangeKind.Add, Definition: { IsNullable: false, DefaultExpression: null, IsIdentity: false, GeneratedExpression: null }, MigrationScript: null })
             {
                 yield return DataHazardDiagnostics.RequiredColumnWithoutDefault(path, severity);
             }
 
-            if (column.Kind != ChangeKind.Modify)
+            if (column.Change != ChangeKind.Modify)
             {
                 continue;
             }
@@ -85,12 +85,12 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
         // Uniqueness added over columns the table already had can collide with existing rows. Columns added in
         // this same diff start empty, so uniqueness confined to them cannot.
         var addedColumns = table.Columns
-            .Where(c => c.Kind == ChangeKind.Add)
+            .Where(c => c.Change == ChangeKind.Add)
             .Select(c => c.Name)
             .ToHashSet();
 
         // A matched migration means the user has declared how the data gets into shape (de-duplicated, backfilled) before the constraint lands, so it silences the hazard.
-        foreach (var primaryKey in table.PrimaryKeys.Where(p => p is { Kind: ChangeKind.Add, MigrationScript: null }))
+        foreach (var primaryKey in table.PrimaryKeys.Where(p => p is { Change: ChangeKind.Add, MigrationScript: null }))
         {
             var existing = ExistingColumns(primaryKey.Definition?.ColumnNames, addedColumns);
             if (existing.Count > 0)
@@ -99,7 +99,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
             }
         }
 
-        foreach (var constraint in table.UniqueConstraints.Where(u => u is { Kind: ChangeKind.Add, MigrationScript: null }))
+        foreach (var constraint in table.UniqueConstraints.Where(u => u is { Change: ChangeKind.Add, MigrationScript: null }))
         {
             var existing = ExistingColumns(constraint.Definition?.ColumnNames, addedColumns);
             if (existing.Count > 0)
@@ -110,7 +110,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
 
         foreach (var index in table.Indexes)
         {
-            if (index is not { Kind: ChangeKind.Add, Definition: { IsUnique: true } definition })
+            if (index is not { Change: ChangeKind.Add, Definition: { IsUnique: true } definition })
             {
                 continue;
             }

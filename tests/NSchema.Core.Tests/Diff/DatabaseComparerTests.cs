@@ -102,10 +102,10 @@ public partial class DatabaseComparerTests
         var schema = Compare(current, desired).Schemas.ShouldHaveSingleItem();
 
         schema.Name.ShouldBe("app");
-        schema.Kind.ShouldBeNull(); // only its tables changed
+        schema.Change.ShouldBe(ChangeKind.Touched); // only its tables changed
         schema.Tables.Select(t => t.Name).ShouldBe(["audit_log", "orders"]); // ordered by name
-        schema.Tables.Single(t => t.Name.Value.Equals("orders")).Kind.ShouldBe(ChangeKind.Modify);
-        schema.Tables.Single(t => t.Name.Value.Equals("audit_log")).Kind.ShouldBe(ChangeKind.Remove);
+        schema.Tables.Single(t => t.Name.Value.Equals("orders")).Change.ShouldBe(ChangeKind.Modify);
+        schema.Tables.Single(t => t.Name.Value.Equals("audit_log")).Change.ShouldBe(ChangeKind.Remove);
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public partial class DatabaseComparerTests
 
         var schema = Compare(current, desired).Schemas.ShouldHaveSingleItem();
 
-        schema.Kind.ShouldBeNull();
+        schema.Change.ShouldBe(ChangeKind.Touched);
         schema.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
     }
 
@@ -165,9 +165,9 @@ public partial class DatabaseComparerTests
         var table = Compare(current, desired).Schemas.Single().Tables.Single();
 
         // Assert
-        table.Kind.ShouldBe(ChangeKind.Add);
+        table.Change.ShouldBe(ChangeKind.Add);
         table.Columns.Select(c => c.Name).ShouldBe(["id", "email"]);
-        table.Columns.ShouldAllBe(c => c.Kind == ChangeKind.Add && c.Definition != null);
+        table.Columns.ShouldAllBe(c => c.Change == ChangeKind.Add && c.Definition != null);
         table.Columns.Single(c => c.Name.Value.Equals("email")).Comment.ShouldBe(new ValueChange<string>(null, "login"));
         table.Columns.Single(c => c.Name.Value.Equals("id")).Comment.ShouldBeNull();
     }
@@ -181,7 +181,7 @@ public partial class DatabaseComparerTests
         var column = Compare(current, desired).Schemas.Single().Tables.Single().Columns.ShouldHaveSingleItem();
 
         column.Name.ShouldBe("email");
-        column.Kind.ShouldBe(ChangeKind.Modify);
+        column.Change.ShouldBe(ChangeKind.Modify);
         column.Nullability.ShouldBe(new ValueChange<bool>(false, true));
         column.Comment.ShouldBe(new ValueChange<string>("old", "new"));
     }
@@ -211,10 +211,10 @@ public partial class DatabaseComparerTests
         var table = Compare(current, desired).Schemas.Single().Tables.Single();
 
         // Assert
-        table.PrimaryKeys.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_pkey")]);
-        table.ForeignKeys.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_user_fk")]);
-        table.UniqueConstraints.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_user_uq")]);
-        table.Checks.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_id_chk")]);
+        table.PrimaryKeys.Select(c => (c.Change, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_pkey")]);
+        table.ForeignKeys.Select(c => (c.Change, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_user_fk")]);
+        table.UniqueConstraints.Select(c => (c.Change, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_user_uq")]);
+        table.Checks.Select(c => (c.Change, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_id_chk")]);
         table.Indexes.ShouldHaveSingleItem().Name.ShouldBe("orders_user_ix");
         var grant = table.Grants.ShouldHaveSingleItem();
         grant.Role.ShouldBe("reader");
@@ -231,7 +231,7 @@ public partial class DatabaseComparerTests
 
         var schema = Compare(current, desired, directives).Schemas.ShouldHaveSingleItem();
 
-        schema.Kind.ShouldBe(ChangeKind.Modify);
+        schema.Change.ShouldBe(ChangeKind.Modify);
         schema.RenamedFrom.ShouldBe("app_old");
         schema.Comment.ShouldBe(new ValueChange<string>(null, "new comment"));
         schema.Grants.ShouldBe([
@@ -261,7 +261,7 @@ public partial class DatabaseComparerTests
         var schema = Compare(current, desired).Schemas.ShouldHaveSingleItem();
 
         schema.Name.ShouldBe("legacy");
-        schema.Kind.ShouldBe(ChangeKind.Remove);
+        schema.Change.ShouldBe(ChangeKind.Remove);
         schema.Tables.ShouldBeEmpty();
     }
 
@@ -276,8 +276,8 @@ public partial class DatabaseComparerTests
 
         var schema = Compare(current, desired).Schemas.ShouldHaveSingleItem();
 
-        schema.Kind.ShouldBe(ChangeKind.Remove);
-        schema.Tables.Select(t => (t.Name.Value, t.Kind)).ShouldBe([("gadgets", ChangeKind.Remove), ("widgets", ChangeKind.Remove)]);
+        schema.Change.ShouldBe(ChangeKind.Remove);
+        schema.Tables.Select(t => (t.Name.Value, t.Change)).ShouldBe([("gadgets", ChangeKind.Remove), ("widgets", ChangeKind.Remove)]);
     }
 
     [Fact]
@@ -290,8 +290,8 @@ public partial class DatabaseComparerTests
         var schema = Compare(Db(), Db(app)).Schemas.ShouldHaveSingleItem();
 
         // Assert
-        schema.Kind.ShouldBeNull();
-        schema.Tables.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Add);
+        schema.Change.ShouldBe(ChangeKind.Touched);
+        schema.Tables.ShouldHaveSingleItem().Change.ShouldBe(ChangeKind.Add);
     }
 
     [Fact]
@@ -304,8 +304,8 @@ public partial class DatabaseComparerTests
         var schema = Compare(Db(legacy), Db()).Schemas.ShouldHaveSingleItem();
 
         // Assert
-        schema.Kind.ShouldBeNull();
-        schema.Tables.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        schema.Change.ShouldBe(ChangeKind.Touched);
+        schema.Tables.ShouldHaveSingleItem().Change.ShouldBe(ChangeKind.Remove);
     }
 
     [Fact]
@@ -323,11 +323,11 @@ public partial class DatabaseComparerTests
 
         var schema = Compare(current, desired).Schemas.ShouldHaveSingleItem();
 
-        schema.Kind.ShouldBe(ChangeKind.Add);
+        schema.Change.ShouldBe(ChangeKind.Add);
         schema.Comment.ShouldBe(new ValueChange<string>(null, "analytics"));
         schema.Grants.ShouldHaveSingleItem().ShouldBe(new GrantChange(ChangeKind.Add, "reader", null));
         var table = schema.Tables.ShouldHaveSingleItem();
-        table.Kind.ShouldBe(ChangeKind.Add);
+        table.Change.ShouldBe(ChangeKind.Add);
         table.Definition.ShouldNotBeNull();
     }
 
