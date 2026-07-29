@@ -55,6 +55,9 @@ internal sealed class MigrationPlanner(
         // an unmanaged dependency would still physically block a drop, so we need to warn on it.
         var diff = diagnostics.Require(compared.ScopedTo(scope, current.Database));
 
+        // Checked after scoping: a container out of scope holds nothing this run creates.
+        diagnostics.Add(Result.From(MissingSchemas(diff, current.Database)));
+
         var dependencies = new PlanDependencies(current.Database, project.Database);
         var plan = Realize(diff, dependencies, dialect, ManagedAfterApply(current, project, scope), diagnostics);
 
@@ -85,6 +88,24 @@ internal sealed class MigrationPlanner(
             [.. directives.ObjectRenames.Select(r => r.From), .. declaredUnderCurrentNames]);
 
         return current.Managed.Union(declared).Union(renameSources);
+    }
+
+    /// <summary>
+    /// The schemas this plan puts new objects into that it will neither create nor find.
+    /// </summary>
+    private static IEnumerable<Diagnostic> MissingSchemas(DatabaseDiff diff, Database current)
+    {
+        var observed = current.Schemas.Select(s => s.Name).ToHashSet();
+
+        var missing = diff.Schemas
+            .Where(schema => schema.Kind != ChangeKind.Add
+                && schema.RenamedFrom is null
+                && !observed.Contains(schema.Name)
+                && schema.EnumerateObjects().Any(o => o.Kind == ChangeKind.Add))
+            .Select(schema => schema.Name)
+            .ToList();
+
+        return missing.Count > 0 ? [PlanDiagnostics.UndeclaredSchemaMissing(missing)] : [];
     }
 
     /// <summary>
@@ -133,7 +154,13 @@ internal sealed class MigrationPlanner(
     private static IdentitySet ManagedAfterApply(CurrentState current, ProjectDefinition project, PlanningScope scope)
     {
         var retained = current.Managed.Except(current.Managed.CoveredBy(scope));
-        return project.ScopedTo(scope).Database.Identities().Union(retained);
+        var scoped = project.ScopedTo(scope).Database;
+        var declared = scoped.Identities();
+
+        var implicitSchemas = scoped.Schemas.Where(s => s.IsImplicit).Select(s => s.Address).ToHashSet();
+
+        return (declared with { Schemas = [.. declared.Schemas.Where(s => !implicitSchemas.Contains(s))] })
+            .Union(retained);
     }
 
     /// <summary>
@@ -149,7 +176,8 @@ internal sealed class MigrationPlanner(
     )
     {
         var planStatements = new List<SqlStatement>();
-        foreach (var action in linearizer.Linearize(diff, dependencies))
+        var capabilities = DialectCapabilities.Of(sql);
+        foreach (var action in linearizer.Linearize(diff, dependencies, capabilities))
         {
             if (diagnostics.TryTake(sql.Generate(action), out var actionStatements))
             {

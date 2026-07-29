@@ -155,6 +155,16 @@ internal sealed class DependencyGraph
     public IReadOnlyCollection<ObjectAddress> ObjectDependentsOf(ObjectAddress address) => Owners(address, _requiredBy);
 
     /// <summary>
+    /// The foreign keys pointing at the table at <paramref name="address"/> — the edges into it that can be cut,
+    /// where <see cref="ObjectDependentsOf"/> only says who holds them.
+    /// </summary>
+    public IReadOnlyCollection<MemberAddress> ForeignKeysInto(ObjectAddress address) =>
+        [.. Nodes(_requiredBy, new DependencyNode(address, DependencyKind.Table))
+            .Where(node => node.Kind == DependencyKind.ForeignKey)
+            .Select(node => node.Address)
+            .OfType<MemberAddress>()];
+
+    /// <summary>
     /// The nodes living at <paramref name="address"/>, of any kind.
     /// </summary>
     public IReadOnlyCollection<DependencyNode> At(Address address) =>

@@ -1,4 +1,5 @@
 using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Constraints;
 using NSchema.Diff.Domain.Schemas;
 using NSchema.Diff.Domain.Tables;
 using NSchema.Model;
@@ -38,9 +39,12 @@ public sealed class PlanLinearizerTableDependencyTests
     private static ObjectAddress Address(string qualified) =>
         qualified.Split('.') is [var schema, var name] ? new ObjectAddress(schema, name) : new ObjectAddress("app", qualified);
 
-    /// <summary>A table the project declares and the database does not.</summary>
-    private TableDiff Added(string schema, string name, params string[] references) =>
-        TableDiff.Added(schema, _sides.Creating(schema, TableReferencing(name, references)));
+    /// <summary>A table the project declares and the database does not, shaped the way the comparer builds one.</summary>
+    private TableDiff Added(string schema, string name, params string[] references)
+    {
+        var table = _sides.Creating(schema, TableReferencing(name, references));
+        return TableDiff.Added(schema, table) with { ForeignKeys = [.. table.ForeignKeys.Select(ForeignKeyDiff.Added)] };
+    }
 
     /// <summary>A table the database has and the project does not.</summary>
     private TableDiff Removed(string schema, string name, params string[] references)
@@ -50,13 +54,21 @@ public sealed class PlanLinearizerTableDependencyTests
     }
 
     private IReadOnlyList<MigrationAction> Linearize(params SchemaDiff[] schemas) =>
-        _linearizer.Linearize(new DatabaseDiff(schemas), _sides.Dependencies);
+        _linearizer.Linearize(new DatabaseDiff(schemas), _sides.Dependencies, DialectCapabilities.Standard);
+
+    /// <summary>Linearizes for a dialect that keeps every foreign key on the table declaring it.</summary>
+    private IReadOnlyList<MigrationAction> LinearizeInline(params SchemaDiff[] schemas) =>
+        _linearizer.Linearize(new DatabaseDiff(schemas), _sides.Dependencies, new DialectCapabilities(CanAlterForeignKeys: false));
 
     private static IReadOnlyList<string> DropOrder(IReadOnlyList<MigrationAction> plan) =>
         [.. plan.OfType<DropTable>().Select(d => d.Table.Name.Value)];
 
     private static IReadOnlyList<string> CreateOrder(IReadOnlyList<MigrationAction> plan) =>
         [.. plan.OfType<CreateTable>().Select(c => c.Table.Name.Value)];
+
+    /// <summary>Where the first action of the given kind lands in the plan.</summary>
+    private static int Index<T>(IReadOnlyList<MigrationAction> plan) where T : MigrationAction =>
+        plan.Select((action, i) => (action, i)).First(x => x.action is T).i;
 
     // -------------------------------------------------------------------------
 
@@ -150,9 +162,9 @@ public sealed class PlanLinearizerTableDependencyTests
     }
 
     [Fact]
-    public void MutuallyReferencingTables_AreStillPlanned()
+    public void MutuallyReferencingTables_AreDropped_WithTheUnorderableForeignKeyCutFirst()
     {
-        // Arrange
+        // Arrange — no drop order satisfies both foreign keys, so one of them has to go before either table can.
         var schema = SchemaDiff.Removed("app") with
         {
             Tables = [Removed("app", "left", "app.right"), Removed("app", "right", "app.left")],
@@ -161,8 +173,78 @@ public sealed class PlanLinearizerTableDependencyTests
         // Act
         var plan = Linearize(schema);
 
+        // Assert — the key on the table dropped second is the one no order can keep.
+        var severed = plan.OfType<DropForeignKey>().ShouldHaveSingleItem().ForeignKey;
+        severed.Object.ShouldBe(DropOrder(plan)[1]);
+        Index<DropForeignKey>(plan).ShouldBeLessThan(Index<DropTable>(plan));
+    }
+
+    [Fact]
+    public void MutuallyReferencingTables_AreCreated_WithTheUnorderableForeignKeyAddedAfterwards()
+    {
+        // Arrange — the second table does not exist yet when the first is created, so its key cannot ride along.
+        var schema = SchemaDiff.Added("app") with
+        {
+            Tables = [Added("app", "left", "app.right"), Added("app", "right", "app.left")],
+        };
+
+        // Act
+        var plan = Linearize(schema);
+
+        // Assert — the table created first is the one that cannot carry its key inline.
+        var first = CreateOrder(plan)[0];
+        plan.OfType<AddForeignKey>().ShouldHaveSingleItem().Table.Name.ShouldBe(first);
+        plan.OfType<CreateTable>().Single(t => t.Table.Name.Value.Equals(first)).Table.ForeignKeys.ShouldBeEmpty();
+        plan.OfType<CreateTable>().Single(t => !t.Table.Name.Value.Equals(first)).Table.ForeignKeys.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void MutuallyReferencingTables_OnADialectThatCannotAlterKeys_KeepThemInline()
+    {
+        // Arrange — nothing can be added afterwards, so the keys stay on the tables and the database resolves
+        // the forward reference itself.
+        var schema = SchemaDiff.Added("app") with
+        {
+            Tables = [Added("app", "left", "app.right"), Added("app", "right", "app.left")],
+        };
+
+        // Act
+        var plan = LinearizeInline(schema);
+
         // Assert
+        plan.OfType<AddForeignKey>().ShouldBeEmpty();
+        plan.OfType<CreateTable>().ShouldAllBe(t => t.Table.ForeignKeys.Count == 1);
+    }
+
+    [Fact]
+    public void MutuallyReferencingTables_OnADialectThatCannotAlterKeys_AreDroppedWithoutCuttingOne()
+    {
+        // Arrange
+        var schema = SchemaDiff.Removed("app") with
+        {
+            Tables = [Removed("app", "left", "app.right"), Removed("app", "right", "app.left")],
+        };
+
+        // Act
+        var plan = LinearizeInline(schema);
+
+        // Assert
+        plan.OfType<DropForeignKey>().ShouldBeEmpty();
         DropOrder(plan).Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public void CreatedTable_ReferencingOneAlreadyThere_KeepsItsForeignKeyInline()
+    {
+        // Arrange — nothing in the plan has to happen first, so the key rides the CREATE TABLE as usual.
+        var schema = SchemaDiff.Containing("app") with { Tables = [Added("app", "orders", "app.customers")] };
+
+        // Act
+        var plan = Linearize(schema);
+
+        // Assert
+        plan.OfType<AddForeignKey>().ShouldBeEmpty();
+        plan.OfType<CreateTable>().ShouldHaveSingleItem().Table.ForeignKeys.ShouldHaveSingleItem();
     }
 
     [Fact]

@@ -159,7 +159,7 @@ public sealed class PlanLinearizerSnapshotTests
             ]);
 
         // Act
-        var plan = _linearizer.Linearize(diff, _sides.Dependencies);
+        var plan = _linearizer.Linearize(diff, _sides.Dependencies, DialectCapabilities.Standard);
 
         // Assert
         return Verify(plan.Select(a => new { Type = a.GetType().Name, Action = a }));

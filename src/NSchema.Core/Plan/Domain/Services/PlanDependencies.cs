@@ -30,4 +30,9 @@ internal sealed class PlanDependencies(Database current, Database desired)
     /// The objects that must go before the one at <paramref name="address"/> can be dropped.
     /// </summary>
     public IReadOnlyCollection<ObjectAddress> RequiredBy(ObjectAddress address) => _current.ObjectDependentsOf(address);
+
+    /// <summary>
+    /// The foreign keys the current database points at <paramref name="address"/> with.
+    /// </summary>
+    public IReadOnlyCollection<MemberAddress> ForeignKeysInto(ObjectAddress address) => _current.ForeignKeysInto(address);
 }

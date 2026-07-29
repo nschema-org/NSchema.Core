@@ -44,7 +44,7 @@ public sealed class PlanLinearizerTests
     private readonly MigrationSides _sides = new();
 
     private IReadOnlyList<MigrationAction> Linearize(params SchemaDiff[] schemas) =>
-        _linearizer.Linearize(new DatabaseDiff(schemas), _sides.Dependencies);
+        _linearizer.Linearize(new DatabaseDiff(schemas), _sides.Dependencies, DialectCapabilities.Standard);
 
     // -- diff node builders ----------------------------------------------------
 

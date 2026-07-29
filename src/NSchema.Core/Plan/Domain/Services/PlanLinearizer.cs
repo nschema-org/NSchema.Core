@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Columns;
 using NSchema.Diff.Domain.Extensions;
@@ -7,6 +8,7 @@ using NSchema.Diff.Domain.Tables;
 using NSchema.Diff.Domain.Views;
 using NSchema.Model;
 using NSchema.Model.Scripts;
+using NSchema.Model.Tables;
 using NSchema.Plan.Domain.Columns;
 using NSchema.Plan.Domain.CompositeTypes;
 using NSchema.Plan.Domain.Constraints;
@@ -29,7 +31,7 @@ namespace NSchema.Plan.Domain.Services;
 /// </summary>
 internal sealed class PlanLinearizer : IPlanLinearizer
 {
-    public IReadOnlyList<MigrationAction> Linearize(DatabaseDiff diff, PlanDependencies dependencies)
+    public IReadOnlyList<MigrationAction> Linearize(DatabaseDiff diff, PlanDependencies dependencies, DialectCapabilities capabilities)
     {
         var actions = new List<MigrationAction>();
         EmitExtensions(diff, actions);
@@ -41,7 +43,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // Tables and views are each emitted in one cross-schema pass: their create/drop order is governed by a
         // dependency sort (created after what they need, dropped before it), which the per-schema walk above
         // cannot express — a foreign key or a view body may reach into another schema.
-        EmitTables(diff, dependencies, actions);
+        EmitTables(diff, dependencies, capabilities, actions);
         EmitViews(diff, dependencies, actions);
 
         actions = [.. MigrationActionOrdering.Order(actions)];
@@ -55,21 +57,82 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
     /// <summary>
     /// Emits the table actions across every schema, in the order their foreign keys require: a table is created
-    /// after the tables it references and dropped before them.
+    /// after the tables it references and dropped before them. Tables may legally point at each other, and no
+    /// order satisfies a cycle — so any foreign key the order leaves unsatisfied is taken out of the way first,
+    /// unless the dialect keeps its keys on the tables that declare them.
     /// </summary>
-    private static void EmitTables(DatabaseDiff diff, PlanDependencies dependencies, List<MigrationAction> actions)
+    private static void EmitTables(
+        DatabaseDiff diff,
+        PlanDependencies dependencies,
+        DialectCapabilities capabilities,
+        List<MigrationAction> actions)
     {
         var tables = diff.Schemas.SelectMany(schema => schema.Tables).ToList();
 
-        foreach (var table in InCreationOrder([.. tables.Where(table => table.Kind != ChangeKind.Remove)], dependencies))
+        var created = InCreationOrder([.. tables.Where(table => table.Kind != ChangeKind.Remove)], dependencies);
+        var unfolded = capabilities.CanAlterForeignKeys ? UnsatisfiedOnCreate(created) : FrozenSet<MemberAddress>.Empty;
+        foreach (var table in created)
         {
-            EmitTable(table, actions);
+            EmitTable(table, actions, unfolded);
         }
 
-        foreach (var table in InRemovalOrder([.. tables.Where(table => table.Kind == ChangeKind.Remove)], dependencies))
+        var dropped = InRemovalOrder([.. tables.Where(table => table.Kind == ChangeKind.Remove)], dependencies);
+        if (capabilities.CanAlterForeignKeys)
         {
-            EmitTable(table, actions);
+            foreach (var foreignKey in UnsatisfiedOnDrop(dropped, dependencies))
+            {
+                actions.Add(new DropForeignKey(foreignKey));
+            }
         }
+        foreach (var table in dropped)
+        {
+            EmitTable(table, actions, FrozenSet<MemberAddress>.Empty);
+        }
+    }
+
+    /// <summary>
+    /// The foreign keys a created table cannot carry inline, because the table they point at is created later in
+    /// the same plan. They are added afterwards instead, once every table exists.
+    /// </summary>
+    private static IReadOnlySet<MemberAddress> UnsatisfiedOnCreate(IReadOnlyList<TableDiff> created)
+    {
+        var positions = Positions(created, table => new ObjectAddress(table.Schema, table.Name));
+
+        return (from table in created
+                let address = new ObjectAddress(table.Schema, table.Name)
+                from foreignKey in InlineForeignKeys(table)
+                let references = new ObjectAddress(foreignKey.References.Schema, foreignKey.References.Name)
+                where positions.TryGetValue(references, out var referenced) && referenced > positions[address]
+                select new MemberAddress(table.Schema, table.Name, foreignKey.Name)).ToHashSet();
+    }
+
+    /// <summary>The foreign keys a change carries on the table it creates; none when it creates nothing.</summary>
+    private static IEnumerable<ForeignKey> InlineForeignKeys(TableDiff table) => table.IsAdd() ? table.Definition.ForeignKeys : [];
+
+    /// <summary>
+    /// The foreign keys the drop order leaves unsatisfied, held by a table dropped after the one it points at.
+    /// Dropping the constraint first is free: both tables are on their way out.
+    /// </summary>
+    private static IReadOnlyList<MemberAddress> UnsatisfiedOnDrop(IReadOnlyList<TableDiff> dropped, PlanDependencies dependencies)
+    {
+        var positions = Positions(dropped, table => new ObjectAddress(table.Schema, table.RenamedFrom ?? table.Name));
+
+        return [.. from table in dropped
+                   let address = new ObjectAddress(table.Schema, table.RenamedFrom ?? table.Name)
+                   from foreignKey in dependencies.ForeignKeysInto(address)
+                   where positions.TryGetValue(foreignKey.Owner, out var holder) && holder > positions[address]
+                   select foreignKey];
+    }
+
+    private static Dictionary<ObjectAddress, int> Positions(IReadOnlyList<TableDiff> tables, Func<TableDiff, ObjectAddress> address)
+    {
+        var positions = new Dictionary<ObjectAddress, int>();
+        for (var i = 0; i < tables.Count; i++)
+        {
+            positions[address(tables[i])] = i;
+        }
+
+        return positions;
     }
 
     /// <summary>
@@ -434,14 +497,22 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitTable(TableDiff table, List<MigrationAction> actions)
+    /// <summary>
+    /// Emits one table's actions.
+    /// </summary>
+    /// <param name="table">The change to emit.</param>
+    /// <param name="actions">The action list being built.</param>
+    /// <param name="unfolded">
+    /// The foreign keys that cannot ride the CREATE TABLE, and are added separately afterwards instead.
+    /// </param>
+    private static void EmitTable(TableDiff table, List<MigrationAction> actions, IReadOnlySet<MemberAddress> unfolded)
     {
         switch (table.Kind)
         {
             case ChangeKind.Add when table.IsAdd():
                 // The columns and every table constraint are created inline by CREATE TABLE (carried on
                 // Definition); only indexes, triggers, comments and grants arrive as separate actions.
-                actions.Add(new CreateTable(table.Schema, table.Definition));
+                actions.Add(new CreateTable(table.Schema, WithoutForeignKeys(table, unfolded)));
                 if (table.Comment is { } tableComment)
                 {
                     actions.Add(new SetTableComment(new ObjectAddress(table.Schema, table.Name), tableComment.Old, tableComment.New));
@@ -453,7 +524,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                         actions.Add(new SetColumnComment(new MemberAddress(table.Schema, table.Name, column.Name), columnComment.Old, columnComment.New));
                     }
                 }
-                EmitConstraints(table, actions);
+                EmitConstraints(table, actions, unfolded);
                 EmitIndexes(table, actions);
                 EmitTriggers(table, actions);
                 EmitGrants(table, actions);
@@ -476,7 +547,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 {
                     EmitColumn(table, column, actions);
                 }
-                EmitConstraints(table, actions);
+                EmitConstraints(table, actions, unfolded);
                 EmitIndexes(table, actions);
                 EmitTriggers(table, actions);
                 EmitGrants(table, actions);
@@ -559,7 +630,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
     // Drops and revokes are sorted before RenameTable, so on a renamed table they run while it still carries
     // its old name; every action from the rename onward targets the new name.
-    private static void EmitConstraints(TableDiff table, List<MigrationAction> actions)
+    private static void EmitConstraints(TableDiff table, List<MigrationAction> actions, IReadOnlySet<MemberAddress> unfolded)
     {
         var preRenameName = table.RenamedFrom ?? table.Name;
 
@@ -567,31 +638,33 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // into the CREATE TABLE and only comment changes still arrive as separate actions.
         var foldAdds = table.Kind == ChangeKind.Add;
 
-        EmitConstraintKind(table.PrimaryKeys, actions, foldAdds,
+        EmitConstraintKind(table.PrimaryKeys, actions, _ => foldAdds,
             pk => pk.Definition,
             (pk, definition) => new AddPrimaryKey(new ObjectAddress(table.Schema, table.Name), definition),
             pk => new DropPrimaryKey(new MemberAddress(table.Schema, preRenameName, pk.Name)),
             (pk, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, pk.Name), comment.Old, comment.New));
 
-        EmitConstraintKind(table.ForeignKeys, actions, foldAdds,
+        // A foreign key left out of the CREATE TABLE is added here instead, once the table it points at exists.
+        EmitConstraintKind(table.ForeignKeys, actions,
+            fk => foldAdds && !unfolded.Contains(new MemberAddress(table.Schema, table.Name, fk.Name)),
             fk => fk.Definition,
             (fk, definition) => new AddForeignKey(new ObjectAddress(table.Schema, table.Name), definition),
             fk => new DropForeignKey(new MemberAddress(table.Schema, preRenameName, fk.Name)),
             (fk, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, fk.Name), comment.Old, comment.New));
 
-        EmitConstraintKind(table.UniqueConstraints, actions, foldAdds,
+        EmitConstraintKind(table.UniqueConstraints, actions, _ => foldAdds,
             uq => uq.Definition,
             (uq, definition) => new AddUniqueConstraint(new ObjectAddress(table.Schema, table.Name), definition),
             uq => new DropUniqueConstraint(new MemberAddress(table.Schema, preRenameName, uq.Name)),
             (uq, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, uq.Name), comment.Old, comment.New));
 
-        EmitConstraintKind(table.Checks, actions, foldAdds,
+        EmitConstraintKind(table.Checks, actions, _ => foldAdds,
             ck => ck.Definition,
             (ck, definition) => new AddCheckConstraint(new ObjectAddress(table.Schema, table.Name), definition),
             ck => new DropCheckConstraint(new MemberAddress(table.Schema, preRenameName, ck.Name)),
             (ck, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, ck.Name), comment.Old, comment.New));
 
-        EmitConstraintKind(table.ExclusionConstraints, actions, foldAdds,
+        EmitConstraintKind(table.ExclusionConstraints, actions, _ => foldAdds,
             ex => ex.Definition,
             (ex, definition) => new AddExclusionConstraint(new ObjectAddress(table.Schema, table.Name), definition),
             ex => new DropExclusionConstraint(new MemberAddress(table.Schema, preRenameName, ex.Name)),
@@ -599,15 +672,35 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     }
 
     /// <summary>
+    /// The table to create, less the foreign keys that cannot ride it. The definition belongs to the project
+    /// tree, so trimming one is a copy.
+    /// </summary>
+    private static Table WithoutForeignKeys(TableDiff table, IReadOnlySet<MemberAddress> unfolded)
+    {
+        if (!table.IsAdd() || unfolded.Count == 0)
+        {
+            return table.Definition!;
+        }
+
+        var trimmed = table.Definition.Clone();
+        foreach (var foreignKey in trimmed.ForeignKeys.Where(fk => unfolded.Contains(new MemberAddress(table.Schema, table.Name, fk.Name))).ToList())
+        {
+            trimmed.ForeignKeys.Remove(foreignKey);
+        }
+
+        return trimmed;
+    }
+
+    /// <summary>
     /// Emits one constraint kind: an add's matched migration first (it prepares the data the constraint depends
     /// on — de-duplication, backfill — and the priority table runs every data migration before the constraint
     /// adds), then the change itself. A constraint Modify is always a comment-only change. When <paramref
-    /// name="foldAdds"/> is set the table is being created, so an add is inlined into the CREATE TABLE and skipped.
+    /// name="foldAdd"/> holds the table is being created, so the add is inlined into the CREATE TABLE and skipped.
     /// </summary>
     private static void EmitConstraintKind<T, TDefinition>(
         IReadOnlyList<T> constraints,
         List<MigrationAction> actions,
-        bool foldAdds,
+        Func<T, bool> foldAdd,
         Func<T, TDefinition?> definition,
         Func<T, TDefinition, MigrationAction> add,
         Func<T, MigrationAction> drop,
@@ -616,7 +709,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     {
         foreach (var constraint in constraints)
         {
-            if (foldAdds && constraint.Kind == ChangeKind.Add)
+            if (constraint.Kind == ChangeKind.Add && foldAdd(constraint))
             {
                 continue;
             }
