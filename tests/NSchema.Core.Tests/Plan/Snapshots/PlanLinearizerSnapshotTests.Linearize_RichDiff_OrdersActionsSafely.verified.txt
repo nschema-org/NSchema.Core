@@ -9,10 +9,10 @@
         Name: {
           Value: stale_view
         },
-        Value: app.stale_view,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.stale_view
       },
       IsMaterialized: false
     }
@@ -27,10 +27,10 @@
         Name: {
           Value: temp_view
         },
-        Value: scratch.temp_view,
         SchemaName: {
           Value: scratch
-        }
+        },
+        Value: scratch.temp_view
       },
       IsMaterialized: false
     }
@@ -48,7 +48,6 @@
         Member: {
           Value: orders_user_fk
         },
-        Value: app.purchases.orders_user_fk,
         SchemaName: {
           Value: app
         },
@@ -59,11 +58,12 @@
           Name: {
             Value: purchases
           },
-          Value: app.purchases,
           SchemaName: {
             Value: app
-          }
-        }
+          },
+          Value: app.purchases
+        },
+        Value: app.purchases.orders_user_fk
       }
     }
   },
@@ -85,10 +85,10 @@
         Name: {
           Value: importance
         },
-        Value: app.importance,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.importance
       },
       NewName: {
         Value: priority
@@ -145,10 +145,10 @@
         Name: {
           Value: priority
         },
-        Value: app.priority,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.priority
       },
       Value: {
         Value: medium
@@ -168,10 +168,10 @@
         Name: {
           Value: ticket_id
         },
-        Value: app.ticket_id,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.ticket_id
       },
       OldOptions: {
         StartWith: 1,
@@ -193,10 +193,10 @@
         Name: {
           Value: old_score
         },
-        Value: app.old_score,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.old_score
       },
       NewName: {
         Value: score
@@ -274,10 +274,10 @@
         Name: {
           Value: purchases
         },
-        Value: app.purchases,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.purchases
       },
       NewName: {
         Value: orders
@@ -294,10 +294,10 @@
         Name: {
           Value: legacy_report
         },
-        Value: app.legacy_report,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.legacy_report
       },
       NewName: {
         Value: report
@@ -313,6 +313,7 @@
       },
       Table: {
         PrimaryKey: {
+          Kind: PrimaryKey,
           ColumnNames: [
             {
               Value: id
@@ -356,6 +357,7 @@
         ],
         UniqueConstraints: [
           {
+            Kind: UniqueConstraint,
             ColumnNames: [
               {
                 Value: email
@@ -382,10 +384,10 @@
         Name: {
           Value: orders
         },
-        Value: app.orders,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.orders
       },
       Column: {
         Type: {
@@ -414,10 +416,10 @@
         Name: {
           Value: orders
         },
-        Value: app.orders,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.orders
       },
       Column: {
         Type: {
@@ -443,10 +445,10 @@
         Name: {
           Value: orders
         },
-        Value: app.orders,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.orders
       },
       Column: {
         Type: {
@@ -491,7 +493,6 @@
         Member: {
           Value: total_label
         },
-        Value: app.orders.total_label,
         SchemaName: {
           Value: app
         },
@@ -502,11 +503,12 @@
           Name: {
             Value: orders
           },
-          Value: app.orders,
           SchemaName: {
             Value: app
-          }
-        }
+          },
+          Value: app.orders
+        },
+        Value: app.orders.total_label
       },
       NewExpression: {
         Value: total::text
@@ -523,12 +525,13 @@
         Name: {
           Value: orders
         },
-        Value: app.orders,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.orders
       },
       UniqueConstraint: {
+        Kind: UniqueConstraint,
         ColumnNames: [
           {
             Value: code
@@ -550,12 +553,13 @@
         Name: {
           Value: orders
         },
-        Value: app.orders,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.orders
       },
       CheckConstraint: {
+        Kind: CheckConstraint,
         Expression: {
           Value: total >= 0
         },
@@ -575,12 +579,13 @@
         Name: {
           Value: orders
         },
-        Value: app.orders,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.orders
       },
       ExclusionConstraint: {
+        Kind: ExclusionConstraint,
         Elements: [
           {
             Operator: &&,
@@ -608,12 +613,13 @@
         Name: {
           Value: users
         },
-        Value: app.users,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.users
       },
       Index: {
+        Kind: Index,
         Columns: [
           {
             Column: {
@@ -638,12 +644,13 @@
         Name: {
           Value: orders
         },
-        Value: app.orders,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.orders
       },
       Index: {
+        Kind: Index,
         Columns: [
           {
             Column: {
@@ -686,10 +693,10 @@
             Name: {
               Value: users
             },
-            Value: app.users,
             SchemaName: {
               Value: app
-            }
+            },
+            Value: app.users
           }
         ],
         IsMaterialized: false,
@@ -701,10 +708,10 @@
             Value: active_users
           },
           Kind: View,
-          Value: app.active_users,
           SchemaName: {
             Value: app
-          }
+          },
+          Value: app.active_users
         },
         Name: {
           Value: active_users
@@ -731,10 +738,10 @@
             Name: {
               Value: active_users
             },
-            Value: app.active_users,
             SchemaName: {
               Value: app
-            }
+            },
+            Value: app.active_users
           }
         ],
         IsMaterialized: false,
@@ -746,10 +753,10 @@
             Value: user_summary
           },
           Kind: View,
-          Value: app.user_summary,
           SchemaName: {
             Value: app
-          }
+          },
+          Value: app.user_summary
         },
         Name: {
           Value: user_summary
@@ -767,10 +774,10 @@
         Name: {
           Value: users
         },
-        Value: app.users,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.users
       },
       Role: {
         Value: readers
@@ -788,10 +795,10 @@
         Name: {
           Value: temp_data
         },
-        Value: scratch.temp_data,
         SchemaName: {
           Value: scratch
-        }
+        },
+        Value: scratch.temp_data
       }
     }
   },
@@ -805,10 +812,10 @@
         Name: {
           Value: stale_fn
         },
-        Value: app.stale_fn,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.stale_fn
       }
     }
   },
@@ -822,10 +829,10 @@
         Name: {
           Value: stale_proc
         },
-        Value: app.stale_proc,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.stale_proc
       },
       Kind: Procedure
     }
@@ -840,10 +847,10 @@
         Name: {
           Value: stale_enum
         },
-        Value: app.stale_enum,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.stale_enum
       }
     }
   },
@@ -857,10 +864,10 @@
         Name: {
           Value: temp_status
         },
-        Value: scratch.temp_status,
         SchemaName: {
           Value: scratch
-        }
+        },
+        Value: scratch.temp_status
       }
     }
   },
@@ -874,10 +881,10 @@
         Name: {
           Value: stale_seq
         },
-        Value: app.stale_seq,
         SchemaName: {
           Value: app
-        }
+        },
+        Value: app.stale_seq
       }
     }
   },
@@ -891,10 +898,10 @@
         Name: {
           Value: temp_seq
         },
-        Value: scratch.temp_seq,
         SchemaName: {
           Value: scratch
-        }
+        },
+        Value: scratch.temp_seq
       }
     }
   },

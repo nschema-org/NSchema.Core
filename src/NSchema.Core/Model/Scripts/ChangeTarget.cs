@@ -18,7 +18,7 @@ public sealed record ChangeTarget(
     /// <summary>
     /// The schema the run is scoped to, when the target is schema-scoped.
     /// </summary>
-    public SchemaAddress? ScopeSchema => Schema != null ? new SchemaAddress(Schema) : null;
+    public DatabaseAddress? ScopeSchema => Schema != null ? DatabaseAddress.Schema(Schema) : null;
 
     /// <summary>
     /// The fully qualified target path.

@@ -146,8 +146,8 @@ public sealed class DatabaseStateSerializerTests
         => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database { Schemas = [] })
         {
             Managed = new IdentitySet(
-                Schemas: [new SchemaAddress("app")],
-                Objects: [new ObjectAddress("app", "users") with { Kind = ObjectKind.Table }],
+                Schemas: [DatabaseAddress.Schema("app")],
+                Objects: [new ObjectAddress("app", "users") with { Kind = SchemaObjectKind.Table }],
                 Extensions: [new ScopedAddress(null, "citext")]),
         }).Span));
 
@@ -158,13 +158,13 @@ public sealed class DatabaseStateSerializerTests
         => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database { Schemas = [] })
         {
             Managed = new IdentitySet(
-                Schemas: [new SchemaAddress("app"), new SchemaAddress("my.schema")],
+                Schemas: [DatabaseAddress.Schema("app"), DatabaseAddress.Schema("my.schema")],
                 Objects:
                 [
-                    new ObjectAddress("app", "users", ObjectKind.Table),
-                    new ObjectAddress("app", "active_users", ObjectKind.View),
-                    new ObjectAddress("app", "user_id_seq", ObjectKind.Sequence),
-                    new ObjectAddress("my.schema", "Order Details", ObjectKind.Table),
+                    new ObjectAddress("app", "users", SchemaObjectKind.Table),
+                    new ObjectAddress("app", "active_users", SchemaObjectKind.View),
+                    new ObjectAddress("app", "user_id_seq", SchemaObjectKind.Sequence),
+                    new ObjectAddress("my.schema", "Order Details", SchemaObjectKind.Table),
                 ],
                 Extensions: [new ScopedAddress(null, "citext"), new ScopedAddress(null, "uuid-ossp")]),
         }).Span));
@@ -174,11 +174,11 @@ public sealed class DatabaseStateSerializerTests
     {
         // Arrange — every level, including names that would need quoting if written as a path.
         var managed = new IdentitySet(
-            Schemas: [new SchemaAddress("app"), new SchemaAddress("my.schema")],
+            Schemas: [DatabaseAddress.Schema("app"), DatabaseAddress.Schema("my.schema")],
             Objects:
             [
-                new ObjectAddress("app", "users", ObjectKind.Table),
-                new ObjectAddress("my.schema", "Order Details", ObjectKind.View),
+                new ObjectAddress("app", "users", SchemaObjectKind.Table),
+                new ObjectAddress("my.schema", "Order Details", SchemaObjectKind.View),
             ],
             Extensions: [new ScopedAddress(null, "citext")]);
 

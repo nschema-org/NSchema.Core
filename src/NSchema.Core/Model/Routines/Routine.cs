@@ -9,7 +9,7 @@ namespace NSchema.Model.Routines;
 public sealed class Routine : SchemaObject, IEquatable<Routine>
 {
     /// <inheritdoc/>
-    public override ObjectKind Kind => ObjectKind.Routine;
+    public override SchemaObjectKind Kind => SchemaObjectKind.Routine;
 
     /// <summary>
     /// Whether the routine is a function or a procedure.

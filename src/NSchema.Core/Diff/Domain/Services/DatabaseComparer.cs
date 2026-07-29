@@ -248,7 +248,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
 
     private SchemaDiff? BuildModifiedSchema(Schema current, Schema desired, RenameLog renames)
     {
-        var renamedFrom = renames.RenamedFrom(new SchemaAddress(desired.Name));
+        var renamedFrom = renames.RenamedFrom(DatabaseAddress.Schema(desired.Name));
         if (renamedFrom is null)
         {
             LogSchemaUnchanged(desired.Name);

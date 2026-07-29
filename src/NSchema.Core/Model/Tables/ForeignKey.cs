@@ -8,6 +8,9 @@ namespace NSchema.Model.Tables;
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class ForeignKey : ObjectMember, IEquatable<ForeignKey>
 {
+    /// <inheritdoc/>
+    public override MemberKind Kind => MemberKind.ForeignKey;
+
     /// <summary>
     /// A list of column names in the current table that are part of the foreign key constraint.
     /// </summary>

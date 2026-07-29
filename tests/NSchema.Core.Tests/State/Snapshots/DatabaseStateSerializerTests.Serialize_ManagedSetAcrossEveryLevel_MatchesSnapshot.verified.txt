@@ -3,8 +3,14 @@
   database: {},
   managed: {
     schemas: [
-      app,
-      my.schema
+      {
+        name: app,
+        kind: Schema
+      },
+      {
+        name: my.schema,
+        kind: Schema
+      }
     ],
     objects: [
       {

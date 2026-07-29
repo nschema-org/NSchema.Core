@@ -9,6 +9,9 @@ namespace NSchema.Model.Triggers;
 [DebuggerDisplay("{Name,nq} (trigger)")]
 public sealed class Trigger : ObjectMember, IEquatable<Trigger>
 {
+    /// <inheritdoc/>
+    public override MemberKind Kind => MemberKind.Trigger;
+
     /// <summary>
     /// When the trigger fires relative to the operation.
     /// </summary>

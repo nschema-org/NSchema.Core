@@ -9,7 +9,7 @@ namespace NSchema.Model.Enums;
 public sealed class EnumType : SchemaObject, IEquatable<EnumType>
 {
     /// <inheritdoc/>
-    public override ObjectKind Kind => ObjectKind.Enum;
+    public override SchemaObjectKind Kind => SchemaObjectKind.Enum;
 
     /// <summary>
     /// The allowed values, in order.

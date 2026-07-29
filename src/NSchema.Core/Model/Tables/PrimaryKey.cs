@@ -8,6 +8,9 @@ namespace NSchema.Model.Tables;
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class PrimaryKey : ObjectMember, IEquatable<PrimaryKey>
 {
+    /// <inheritdoc/>
+    public override MemberKind Kind => MemberKind.PrimaryKey;
+
     /// <summary>
     /// A list of column names that are part of the primary key constraint.
     /// </summary>

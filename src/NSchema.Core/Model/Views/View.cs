@@ -10,7 +10,7 @@ namespace NSchema.Model.Views;
 public sealed class View : SchemaObject, IEquatable<View>
 {
     /// <inheritdoc/>
-    public override ObjectKind Kind => ObjectKind.View;
+    public override SchemaObjectKind Kind => SchemaObjectKind.View;
 
     /// <summary>
     /// The view's defining query, stored verbatim (the text after <c>AS</c>).

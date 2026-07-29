@@ -16,6 +16,6 @@ internal static class TableDiagnostics
     /// <summary>
     /// Adopting a member under a name the table already uses for that kind.
     /// </summary>
-    public static Diagnostic DuplicateMember(SqlIdentifier table, string kind, SqlIdentifier member) =>
-        Diagnostic.Error(Source, $"Table '{table}' already declares {kind:text} '{member}'.");
+    public static Diagnostic DuplicateMember(SqlIdentifier table, MemberKind kind, SqlIdentifier member) =>
+        Diagnostic.Error(Source, $"Table '{table}' already declares {kind.Display():text} '{member}'.");
 }

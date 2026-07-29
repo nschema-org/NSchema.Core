@@ -20,7 +20,7 @@ public sealed record RoutineDiff : ISchemaObjectDiff
 
     /// <inheritdoc />
     [JsonIgnore]
-    public ObjectAddress Address => new(Schema, Name, ObjectKind.Routine);
+    public ObjectAddress Address => new(Schema, Name, SchemaObjectKind.Routine);
 
     /// <summary>
     /// The routine name.

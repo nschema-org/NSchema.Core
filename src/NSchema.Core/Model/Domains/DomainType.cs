@@ -11,7 +11,7 @@ namespace NSchema.Model.Domains;
 public sealed class DomainType : SchemaObject, IEquatable<DomainType>
 {
     /// <inheritdoc/>
-    public override ObjectKind Kind => ObjectKind.Domain;
+    public override SchemaObjectKind Kind => SchemaObjectKind.Domain;
 
     /// <summary>
     /// The underlying base type; a change to it is planned as a drop + recreate.

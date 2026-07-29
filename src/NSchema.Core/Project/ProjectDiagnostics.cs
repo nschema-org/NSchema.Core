@@ -41,8 +41,8 @@ internal static class ProjectDiagnostics
     /// <summary>
     /// The same named object declared more than once within a schema.
     /// </summary>
-    public static NsqlDiagnostic ObjectAlreadyDeclared(ObjectKind kind, SqlIdentifier schema, SqlIdentifier name, SourcePosition position) =>
-        kind is ObjectKind.Routine
+    public static NsqlDiagnostic ObjectAlreadyDeclared(SchemaObjectKind kind, SqlIdentifier schema, SqlIdentifier name, SourcePosition position) =>
+        kind is SchemaObjectKind.Routine
             ? Positioned($"Routine '{schema}.{name}' is already declared.", position)
             : Positioned($"{Capitalized(kind.Display()):text} '{schema}.{name}' is already declared.", position);
 

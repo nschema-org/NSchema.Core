@@ -22,7 +22,7 @@ public sealed record DomainDiff : ISchemaObjectDiff
 
     /// <inheritdoc />
     [JsonIgnore]
-    public ObjectAddress Address => new(Schema, Name, ObjectKind.Domain);
+    public ObjectAddress Address => new(Schema, Name, SchemaObjectKind.Domain);
 
     /// <summary>
     /// The domain name.

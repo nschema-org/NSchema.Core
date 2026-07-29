@@ -13,7 +13,7 @@ namespace NSchema.Model.Tables;
 public sealed class Table : SchemaObject, IEquatable<Table>
 {
     /// <inheritdoc/>
-    public override ObjectKind Kind => ObjectKind.Table;
+    public override SchemaObjectKind Kind => SchemaObjectKind.Table;
 
     /// <summary>
     /// The primary key of the table.
@@ -149,26 +149,25 @@ public sealed class Table : SchemaObject, IEquatable<Table>
     private List<Diagnostic> MemberConflicts(Table members)
     {
         var conflicts = new List<Diagnostic>();
-        conflicts.AddRange(Conflicts(Columns, members.Columns, "column"));
+        conflicts.AddRange(Conflicts(Columns, members.Columns));
         if (PrimaryKey is not null && members.PrimaryKey is not null)
         {
             conflicts.Add(TableDiagnostics.DuplicatePrimaryKey(Name));
         }
-        conflicts.AddRange(Conflicts(ForeignKeys, members.ForeignKeys, "foreign key"));
-        conflicts.AddRange(Conflicts(UniqueConstraints, members.UniqueConstraints, "unique constraint"));
-        conflicts.AddRange(Conflicts(CheckConstraints, members.CheckConstraints, "check constraint"));
-        conflicts.AddRange(Conflicts(ExclusionConstraints, members.ExclusionConstraints, "exclusion constraint"));
-        conflicts.AddRange(Conflicts(Indexes, members.Indexes, "index"));
-        conflicts.AddRange(Conflicts(Triggers, members.Triggers, "trigger"));
+        conflicts.AddRange(Conflicts(ForeignKeys, members.ForeignKeys));
+        conflicts.AddRange(Conflicts(UniqueConstraints, members.UniqueConstraints));
+        conflicts.AddRange(Conflicts(CheckConstraints, members.CheckConstraints));
+        conflicts.AddRange(Conflicts(ExclusionConstraints, members.ExclusionConstraints));
+        conflicts.AddRange(Conflicts(Indexes, members.Indexes));
+        conflicts.AddRange(Conflicts(Triggers, members.Triggers));
         return conflicts;
     }
 
     private IEnumerable<Diagnostic> Conflicts<T>(
         IEnumerable<T> existing,
-        IEnumerable<T> incoming,
-        string kind) where T : ObjectMember =>
+        IEnumerable<T> incoming) where T : ObjectMember =>
         incoming.Where(candidate => existing.Any(member => member.Name == candidate.Name))
-            .Select(candidate => TableDiagnostics.DuplicateMember(Name, kind, candidate.Name));
+            .Select(candidate => TableDiagnostics.DuplicateMember(Name, candidate.Kind, candidate.Name));
 
     private static void AddClones<T>(IEnumerable<T> source, ICollection<T> destination) where T : ObjectMember
     {

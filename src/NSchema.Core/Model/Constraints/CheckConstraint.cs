@@ -8,6 +8,9 @@ namespace NSchema.Model.Constraints;
 [DebuggerDisplay("{Name,nq}: {Expression,nq}")]
 public sealed class CheckConstraint : ObjectMember, IEquatable<CheckConstraint>
 {
+    /// <inheritdoc/>
+    public override MemberKind Kind => MemberKind.CheckConstraint;
+
     /// <summary>
     /// The SQL boolean expression the constraint enforces.
     /// </summary>

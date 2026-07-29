@@ -11,12 +11,14 @@ public sealed record ScopedAddress(SqlIdentifier? Schema, SqlIdentifier Name) : 
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Value => Schema == null ? Name.Value : $"{Schema}.{Name}";
-
-    /// <inheritdoc />
-    [JsonIgnore]
     public override SqlIdentifier? SchemaName => Schema;
 
     /// <inheritdoc />
-    public override bool Covers(Address other) => Equals(other);
+    protected override IReadOnlyList<SqlIdentifier> Path => Schema != null ? [Schema, Name] : [Name];
+
+    /// <inheritdoc />
+    protected override bool CanContain => false;
+
+    /// <inheritdoc />
+    protected override bool NamesSameKindAs(Address other) => Equals(other);
 }

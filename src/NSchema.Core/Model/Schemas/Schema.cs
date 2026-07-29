@@ -14,10 +14,13 @@ namespace NSchema.Model.Schemas;
 /// Represents the definition of a database schema. Adopts the objects it is given.
 /// </summary>
 [DebuggerDisplay("{Name,nq} ({Tables.Count} tables)")]
-public sealed class Schema : DatabaseElement, IEquatable<Schema>
+public sealed class Schema : DatabaseObject, IEquatable<Schema>
 {
     /// <inheritdoc/>
-    public override SchemaAddress Address => new(Name);
+    public override DatabaseObjectKind Kind => DatabaseObjectKind.Schema;
+
+    /// <inheritdoc/>
+    public override DatabaseAddress Address => DatabaseAddress.Schema(Name);
 
     /// <summary>
     /// Whether the schema is here only because something inside it named it, rather than being declared in its own right.

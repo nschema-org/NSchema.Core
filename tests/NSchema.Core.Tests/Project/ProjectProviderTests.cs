@@ -124,7 +124,7 @@ public sealed class ProjectProviderTests : IDisposable
         Write("schema.sql", "CREATE SCHEMA app; CREATE SCHEMA audit;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = (await sut.GetProject(PlanningScope.To(new SchemaAddress("app")), TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(PlanningScope.To(DatabaseAddress.Schema("app")), TestContext.Current.CancellationToken)).Value!;
 
         project.Database.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -206,7 +206,7 @@ public sealed class ProjectProviderTests : IDisposable
             """);
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = (await sut.GetProject(PlanningScope.To(new SchemaAddress("app")), TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(PlanningScope.To(DatabaseAddress.Schema("app")), TestContext.Current.CancellationToken)).Value!;
 
         project.AllScripts().ShouldHaveSingleItem().ShouldBeOfType<ChangeScript>().ScopeSchema.ShouldBe("app");
     }
@@ -273,7 +273,7 @@ public sealed class ProjectProviderTests : IDisposable
             """);
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = (await sut.GetProject(PlanningScope.To(new SchemaAddress("billing")), TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(PlanningScope.To(DatabaseAddress.Schema("billing")), TestContext.Current.CancellationToken)).Value!;
 
         project.Database.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Name.ShouldBe("outbox");
     }
@@ -457,7 +457,7 @@ public sealed class ProjectProviderTests : IDisposable
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act
-        var project = (await sut.GetProject(PlanningScope.To(new SchemaAddress("billing")), TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(PlanningScope.To(DatabaseAddress.Schema("billing")), TestContext.Current.CancellationToken)).Value!;
 
         // Assert
         project.AllScripts().Select(s => s.Address).ShouldBe([new ScopedAddress(null, "global"), Scoped("billing", "seed")]);
@@ -480,7 +480,7 @@ public sealed class ProjectProviderTests : IDisposable
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act
-        var project = (await sut.GetProject(PlanningScope.To(new SchemaAddress("billing")), TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(PlanningScope.To(DatabaseAddress.Schema("billing")), TestContext.Current.CancellationToken)).Value!;
 
         // Assert — only the in-scope instance survives.
         project.AllScripts().ShouldHaveSingleItem().ShouldBeOfType<ChangeScript>().Path.ShouldBe("billing.outbox_events.trace_id");

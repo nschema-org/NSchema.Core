@@ -12,7 +12,7 @@ internal static class StructuralIntegrityDiagnostics
     /// <summary>
     /// An index name reused within a schema, where index and index-backed constraint names are scoped.
     /// </summary>
-    public static Diagnostic DuplicateIndexName(SchemaAddress schema, SqlIdentifier name, string sites) =>
+    public static Diagnostic DuplicateIndexName(DatabaseAddress schema, SqlIdentifier name, string sites) =>
         Diagnostic.Error(Source, $"Schema '{schema}' declares the index name '{name}' more than once ({sites:text}).");
 
     /// <summary>

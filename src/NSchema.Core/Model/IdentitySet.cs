@@ -7,7 +7,7 @@ namespace NSchema.Model;
 /// objects, and database-global extensions. Membership is by value.
 /// </summary>
 public sealed record IdentitySet(
-    IReadOnlyList<SchemaAddress>? Schemas = null,
+    IReadOnlyList<DatabaseAddress>? Schemas = null,
     IReadOnlyList<ObjectAddress>? Objects = null,
     IReadOnlyList<ScopedAddress>? Extensions = null
 )
@@ -20,7 +20,7 @@ public sealed record IdentitySet(
     /// <summary>
     /// The schemas in the set.
     /// </summary>
-    public IReadOnlyList<SchemaAddress> Schemas { get; init; } = Schemas ?? [];
+    public IReadOnlyList<DatabaseAddress> Schemas { get; init; } = Schemas ?? [];
 
     /// <summary>
     /// The schema-level object identities in the set.
@@ -41,7 +41,7 @@ public sealed record IdentitySet(
     /// <summary>
     /// Whether the named schema is in the set.
     /// </summary>
-    public bool ContainsSchema(SqlIdentifier name) => Schemas.Contains(new SchemaAddress(name));
+    public bool ContainsSchema(SqlIdentifier name) => Schemas.Contains(DatabaseAddress.Schema(name));
 
     /// <summary>
     /// Whether the object identity is in the set.

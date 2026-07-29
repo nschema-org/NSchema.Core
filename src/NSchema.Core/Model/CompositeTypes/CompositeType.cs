@@ -9,7 +9,7 @@ namespace NSchema.Model.CompositeTypes;
 public sealed class CompositeType : SchemaObject, IEquatable<CompositeType>
 {
     /// <inheritdoc/>
-    public override ObjectKind Kind => ObjectKind.CompositeType;
+    public override SchemaObjectKind Kind => SchemaObjectKind.CompositeType;
 
     /// <summary>
     /// The fields (attributes) of the type, matched by name; may be empty.

@@ -9,7 +9,7 @@ namespace NSchema.Model.Sequences;
 public sealed class Sequence : SchemaObject, IEquatable<Sequence>
 {
     /// <inheritdoc/>
-    public override ObjectKind Kind => ObjectKind.Sequence;
+    public override SchemaObjectKind Kind => SchemaObjectKind.Sequence;
 
     /// <summary>
     /// The sequence's options; unset options use the provider's defaults.

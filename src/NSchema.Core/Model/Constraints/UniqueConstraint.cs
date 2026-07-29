@@ -8,6 +8,9 @@ namespace NSchema.Model.Constraints;
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class UniqueConstraint : ObjectMember, IEquatable<UniqueConstraint>
 {
+    /// <inheritdoc/>
+    public override MemberKind Kind => MemberKind.UniqueConstraint;
+
     /// <summary>
     /// A list of column names that are part of the unique constraint.
     /// </summary>

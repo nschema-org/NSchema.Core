@@ -24,7 +24,7 @@ public sealed record TableDiff : ISchemaObjectDiff
 
     /// <inheritdoc />
     [JsonIgnore]
-    public ObjectAddress Address => new(Schema, Name, ObjectKind.Table);
+    public ObjectAddress Address => new(Schema, Name, SchemaObjectKind.Table);
 
     /// <summary>
     /// The table name.

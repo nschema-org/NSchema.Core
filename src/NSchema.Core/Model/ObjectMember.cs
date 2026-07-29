@@ -7,6 +7,12 @@ namespace NSchema.Model;
 /// </summary>
 public abstract class ObjectMember : DatabaseElement
 {
+    /// <summary>
+    /// The kind of member this is.
+    /// </summary>
+    [JsonIgnore]
+    public abstract MemberKind Kind { get; }
+
     /// <inheritdoc />
     /// <exception cref="InvalidOperationException">The member is not owned by an object in a schema, so it has no address.</exception>
     public override MemberAddress Address => Parent is { Schema: { } schema }

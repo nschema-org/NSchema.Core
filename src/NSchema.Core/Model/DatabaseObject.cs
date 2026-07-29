@@ -11,5 +11,5 @@ public abstract class DatabaseObject : DatabaseElement
     /// The kind of object this is.
     /// </summary>
     [JsonIgnore]
-    public abstract ObjectKind Kind { get; }
+    public abstract DatabaseObjectKind Kind { get; }
 }

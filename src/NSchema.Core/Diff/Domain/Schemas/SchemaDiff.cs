@@ -27,7 +27,7 @@ public sealed record SchemaDiff
     /// The schema's address.
     /// </summary>
     [JsonIgnore]
-    public SchemaAddress Address => new(Name);
+    public DatabaseAddress Address => DatabaseAddress.Schema(Name);
 
     /// <summary>
     /// The change to the schema itself, or <see langword="null"/> when only its contents changed.

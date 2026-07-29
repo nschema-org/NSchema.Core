@@ -3,7 +3,10 @@
   database: {},
   managed: {
     schemas: [
-      app
+      {
+        name: app,
+        kind: Schema
+      }
     ],
     objects: [
       {

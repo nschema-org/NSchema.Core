@@ -20,7 +20,7 @@ public sealed record EnumDiff : ISchemaObjectDiff
 
     /// <inheritdoc />
     [JsonIgnore]
-    public ObjectAddress Address => new(Schema, Name, ObjectKind.Enum);
+    public ObjectAddress Address => new(Schema, Name, SchemaObjectKind.Enum);
 
     /// <summary>
     /// The enum type name.

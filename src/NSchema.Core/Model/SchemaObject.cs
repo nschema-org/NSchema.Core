@@ -31,7 +31,7 @@ public abstract class SchemaObject : DatabaseElement
     /// The kind of object this is.
     /// </summary>
     [JsonIgnore]
-    public abstract ObjectKind Kind { get; }
+    public abstract SchemaObjectKind Kind { get; }
 
     /// <inheritdoc />
     /// <exception cref="InvalidOperationException">The object does not belong to a schema, so it has no address.</exception>

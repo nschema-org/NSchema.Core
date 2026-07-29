@@ -8,6 +8,9 @@ namespace NSchema.Model.Indexes;
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class TableIndex : ObjectMember, IEquatable<TableIndex>
 {
+    /// <inheritdoc/>
+    public override MemberKind Kind => MemberKind.Index;
+
     /// <summary>
     /// The index keys (columns or expressions) in order.
     /// </summary>
