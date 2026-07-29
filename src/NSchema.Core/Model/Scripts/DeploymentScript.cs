@@ -10,7 +10,7 @@ namespace NSchema.Model.Scripts;
 public sealed record DeploymentScript(
     SqlIdentifier Name,
     SqlText Sql,
-    DatabaseAddress? ScopeSchema,
+    SqlIdentifier? ScopeSchema,
     DeploymentPhase Phase
 ) : Script(Name, Sql, ScopeSchema)
 {

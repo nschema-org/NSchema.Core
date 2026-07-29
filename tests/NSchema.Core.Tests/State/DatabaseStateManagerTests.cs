@@ -3,6 +3,7 @@ using NSchema.State;
 using NSchema.State.Domain;
 using NSchema.State.Plugins;
 using NSubstitute.ExceptionExtensions;
+using NSchema.Model.Scripts;
 
 namespace NSchema.Tests.State;
 
@@ -65,7 +66,7 @@ public sealed class DatabaseStateManagerTests
     public async Task Read_ReturnsTheRecordedState()
     {
         // Arrange
-        var state = DatabaseState.Empty.RecordExecution([new ScriptExecution(new ScopedAddress(null, "seed"), "abc", _now)]);
+        var state = DatabaseState.Empty.RecordExecution([new ScriptExecution(new ScriptReference(null, "seed"), "abc", _now)]);
         StoreHolds(_serializer.Serialize(state));
 
         // Act
@@ -104,7 +105,7 @@ public sealed class DatabaseStateManagerTests
     public async Task Write_PersistsTheSerializedState_AndReportsThePayloadSize()
     {
         // Arrange
-        var state = DatabaseState.Empty.RecordExecution([new ScriptExecution(new ScopedAddress(null, "seed"), "abc", _now)]);
+        var state = DatabaseState.Empty.RecordExecution([new ScriptExecution(new ScriptReference(null, "seed"), "abc", _now)]);
         byte[]? written = null;
         await _store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m.ToArray()), Arg.Any<CancellationToken>());
 

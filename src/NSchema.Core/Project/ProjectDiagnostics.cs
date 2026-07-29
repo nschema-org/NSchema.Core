@@ -20,7 +20,7 @@ internal static class ProjectDiagnostics
     /// <summary>
     /// A script declared more than once in the same scope (the address is the run-once and diagnostic identity).
     /// </summary>
-    public static Diagnostic DuplicateScriptName(ScopedAddress script) => Diagnostic.Error(Source,
+    public static Diagnostic DuplicateScriptName(ScriptReference script) => Diagnostic.Error(Source,
         $"Duplicate script '{script}' declared.");
 
     /// <summary>

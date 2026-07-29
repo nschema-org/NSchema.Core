@@ -53,13 +53,13 @@ internal static class DiffDiagnostics
     /// A run-once script whose body has changed since its recorded execution; it stays skipped.
     /// </summary>
     public static Diagnostic ChangedRunOnceScript(DeploymentScript script) => Diagnostic.Warning("run-once",
-        $"Script '{script.Address}' has changed since it was executed and stays skipped.");
+        $"Script '{script.Reference}' has changed since it was executed and stays skipped.");
 
     /// <summary>
     /// A change-event script that matches nothing in this plan and will not run.
     /// </summary>
     public static Diagnostic DeadMigration(ChangeScript migration) => Diagnostic.Info("data-migrations",
-        $"Migration '{migration.Address}' ({migration.Description}) matches no change in this plan.");
+        $"Migration '{migration.Reference}' ({migration.Description}) matches no change in this plan.");
 
     /// <summary>
     /// A rename directive whose source is gone and whose target already exists.

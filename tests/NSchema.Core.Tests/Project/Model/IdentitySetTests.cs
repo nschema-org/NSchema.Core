@@ -20,7 +20,7 @@ public sealed class IdentitySetTests
         var set = new IdentitySet(
             Schemas: [DatabaseAddress.Schema(_app)],
             Objects: [Table("users")],
-            Extensions: [new ScopedAddress(null, "citext")]);
+            Extensions: [DatabaseAddress.Extension("citext")]);
 
         // Assert
         set.ContainsSchema("app").ShouldBeTrue();
@@ -129,7 +129,7 @@ public sealed class IdentitySetTests
         var set = new IdentitySet(
             Schemas: [DatabaseAddress.Schema(_app), DatabaseAddress.Schema("other")],
             Objects: [Table("users"), new ObjectAddress("other", "t") with { Kind = SchemaObjectKind.Table }],
-            Extensions: [new ScopedAddress(null, "citext")]);
+            Extensions: [DatabaseAddress.Extension("citext")]);
 
         var covered = set.CoveredBy(PlanningScope.To(DatabaseAddress.Schema(_app)));
 
@@ -146,7 +146,7 @@ public sealed class IdentitySetTests
         var set = new IdentitySet(
             Schemas: [DatabaseAddress.Schema(_app)],
             Objects: [Table("users"), Table("orders")],
-            Extensions: [new ScopedAddress(null, "citext")]);
+            Extensions: [DatabaseAddress.Extension("citext")]);
 
         var covered = set.CoveredBy(PlanningScope.To([new ObjectAddress(_app, "users")]));
 
@@ -208,7 +208,7 @@ public sealed class IdentitySetTests
         var filtered = database.FilteredTo(new IdentitySet(
             Schemas: [DatabaseAddress.Schema(_app)],
             Objects: [Table("mine")],
-            Extensions: [new ScopedAddress(null, "citext")]));
+            Extensions: [DatabaseAddress.Extension("citext")]));
 
         // Assert — the unmatched schema, table, and extension are all gone.
         var schema = filtered.Schemas.ShouldHaveSingleItem();

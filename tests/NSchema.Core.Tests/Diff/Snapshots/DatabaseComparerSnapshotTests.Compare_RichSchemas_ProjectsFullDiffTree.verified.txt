@@ -1359,6 +1359,7 @@
         Name: {
           Value: legacy_ext
         },
+        Kind: Extension,
         Value: legacy_ext
       },
       Kind: Remove
@@ -1371,6 +1372,7 @@
         Name: {
           Value: postgis
         },
+        Kind: Extension,
         Value: postgis
       },
       Kind: Modify,
@@ -1387,6 +1389,7 @@
         Name: {
           Value: vector
         },
+        Kind: Extension,
         Value: vector
       },
       Definition: {
@@ -1395,6 +1398,7 @@
           Name: {
             Value: vector
           },
+          Kind: Extension,
           Value: vector
         },
         Name: {

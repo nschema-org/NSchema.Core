@@ -36,12 +36,12 @@
     ],
     extensions: [
       {
-        schema: null,
-        name: citext
+        name: citext,
+        kind: Extension
       },
       {
-        schema: null,
-        name: uuid-ossp
+        name: uuid-ossp,
+        kind: Extension
       }
     ]
   }

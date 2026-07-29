@@ -139,7 +139,7 @@ public sealed class DatabaseTests
                 new ChangeScript("backfill", "UPDATE 1;", new ChangeTarget(app, "users", "email", ChangeTrigger.AddColumn)),
                 new ChangeScript("other", "UPDATE 2;", new ChangeTarget(app, "orders", "total", ChangeTrigger.AddColumn)),
             ],
-            DeploymentScripts: [new DeploymentScript("seed", "SELECT 1;", DatabaseAddress.Schema(app), DeploymentPhase.Pre)]);
+            DeploymentScripts: [new DeploymentScript("seed", "SELECT 1;", app, DeploymentPhase.Pre)]);
 
         // Act
         var filtered = directives.ScopedTo(PlanningScope.To([users]));

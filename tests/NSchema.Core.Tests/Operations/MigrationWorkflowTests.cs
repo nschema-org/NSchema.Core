@@ -365,14 +365,14 @@ public sealed class MigrationWorkflowTests
         // Arrange — the planner's "what I have" input is the schema plus the recorded executions; execution
         // records are shared script vocabulary, so the ledger passes straight through.
         var sut = SutWithState(TestProjects.Project(new Database { Schemas = [] }, [SeedScript()]),
-            new ScriptExecution(new ScopedAddress(null, "seed"), "abc", DateTimeOffset.UnixEpoch));
+            new ScriptExecution(new ScriptReference(null, "seed"), "abc", DateTimeOffset.UnixEpoch));
 
         // Act
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         _planner.Received(1).Plan(
-            Arg.Is<CurrentState>(c => c!.ExecutedScripts.Count == 1 && c.ExecutedScripts[0] == new ScriptExecution(new ScopedAddress(null, "seed"), "abc", DateTimeOffset.UnixEpoch)),
+            Arg.Is<CurrentState>(c => c!.ExecutedScripts.Count == 1 && c.ExecutedScripts[0] == new ScriptExecution(new ScriptReference(null, "seed"), "abc", DateTimeOffset.UnixEpoch)),
             Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>());
     }
 
@@ -477,7 +477,7 @@ public sealed class MigrationWorkflowTests
     public async Task Refresh_PreservesTheExistingLedger()
     {
         // Arrange — the ledger is the one part of state a capture cannot rebuild, so it must carry over.
-        var existing = new ScriptExecution(new ScopedAddress(null, "api-login"), "hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptExecution(new ScriptReference(null, "api-login"), "hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>()).Returns(Result.Success(new StoreReadResult(null)));
         store.Write(Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
@@ -498,7 +498,7 @@ public sealed class MigrationWorkflowTests
     public async Task Refresh_ReRecordingAScript_ReplacesItsEntryByName()
     {
         // Arrange
-        var existing = new ScriptExecution(new ScopedAddress(null, "seed"), "old-hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptExecution(new ScriptReference(null, "seed"), "old-hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>()).Returns(Result.Success(new StoreReadResult(null)));
         store.Write(Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>()).Returns(Result.Success());

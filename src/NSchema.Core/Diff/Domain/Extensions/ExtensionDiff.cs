@@ -19,10 +19,10 @@ public sealed record ExtensionDiff : INamedObjectDiff
     public required SqlIdentifier Name { get; init; }
 
     /// <summary>
-    /// The extension's address; extensions are database-global, so it carries no schema.
+    /// The extension's address.
     /// </summary>
     [JsonIgnore]
-    public ScopedAddress Address => new(null, Name);
+    public DatabaseAddress Address => DatabaseAddress.Extension(Name);
 
     /// <summary>
     /// The change to the database extension.

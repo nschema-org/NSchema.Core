@@ -17,8 +17,8 @@
     ],
     extensions: [
       {
-        schema: null,
-        name: citext
+        name: citext,
+        kind: Extension
       }
     ]
   }

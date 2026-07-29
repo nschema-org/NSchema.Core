@@ -48,7 +48,7 @@ public sealed class ProjectComparerTests
 
     /// <summary>A current state recording <paramref name="sql"/> as <paramref name="script"/>'s executed body.</summary>
     private static CurrentState Executed(Script script, string sql) =>
-        new(_emptySchema, [new ScriptExecution(script.Address, (script with { Sql = sql }).Hash, DateTimeOffset.UnixEpoch)]);
+        new(_emptySchema, [new ScriptExecution(script.Reference, (script with { Sql = sql }).Hash, DateTimeOffset.UnixEpoch)]);
 
     [Fact]
     public void Compare_DiffsBothSchemas()
@@ -109,7 +109,7 @@ public sealed class ProjectComparerTests
         // satisfy a global (or differently scoped) script sharing the name.
         var script = SeedScript();
         var scoped = new CurrentState(_emptySchema,
-            [new ScriptExecution(new ScopedAddress("sales", script.Name), script.Hash, DateTimeOffset.UnixEpoch)]);
+            [new ScriptExecution(new ScriptReference("sales", script.Name), script.Hash, DateTimeOffset.UnixEpoch)]);
 
         // Act
         var comparison = Sut.Compare(scoped, TestProjects.Project(_emptySchema, [script]));
@@ -173,7 +173,7 @@ public sealed class ProjectComparerTests
         // gated by the change alone, so a re-planned change re-runs it.
         var migration = EmailBackfillMigration();
         var current = new CurrentState(UsersWithId().Database,
-            [new ScriptExecution(migration.Address, migration.Hash, DateTimeOffset.UnixEpoch)]);
+            [new ScriptExecution(migration.Reference, migration.Hash, DateTimeOffset.UnixEpoch)]);
 
         // Act
         var comparison = Sut.Compare(current, TestProjects.Project(UsersWithEmail(), [migration]));

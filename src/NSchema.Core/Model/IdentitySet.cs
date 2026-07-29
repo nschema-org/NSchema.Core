@@ -9,7 +9,7 @@ namespace NSchema.Model;
 public sealed record IdentitySet(
     IReadOnlyList<DatabaseAddress>? Schemas = null,
     IReadOnlyList<ObjectAddress>? Objects = null,
-    IReadOnlyList<ScopedAddress>? Extensions = null
+    IReadOnlyList<DatabaseAddress>? Extensions = null
 )
 {
     /// <summary>
@@ -30,7 +30,7 @@ public sealed record IdentitySet(
     /// <summary>
     /// The extensions in the set.
     /// </summary>
-    public IReadOnlyList<ScopedAddress> Extensions { get; init; } = Extensions ?? [];
+    public IReadOnlyList<DatabaseAddress> Extensions { get; init; } = Extensions ?? [];
 
     /// <summary>
     /// Whether the set contains no identities.
@@ -56,7 +56,7 @@ public sealed record IdentitySet(
     /// <summary>
     /// Whether the named extension is in the set.
     /// </summary>
-    public bool ContainsExtension(SqlIdentifier name) => Extensions.Contains(new ScopedAddress(null, name));
+    public bool ContainsExtension(SqlIdentifier name) => Extensions.Contains(DatabaseAddress.Extension(name));
 
     /// <summary>
     /// The set containing every identity in either set.
