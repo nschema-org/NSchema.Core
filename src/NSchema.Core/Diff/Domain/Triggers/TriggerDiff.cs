@@ -8,7 +8,7 @@ namespace NSchema.Diff.Domain.Triggers;
 /// <summary>
 /// Describes a change to a table trigger.
 /// </summary>
-public sealed record TriggerDiff : INamedObjectDiff
+public sealed record TriggerDiff : IObjectMemberDiff
 {
     [JsonConstructor]
     private TriggerDiff() { }

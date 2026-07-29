@@ -130,8 +130,8 @@ public sealed record TableDiff : ISchemaObjectDiff
     /// for kind-agnostic consumers. A method rather than a property so serializers and snapshot tooling do not
     /// duplicate the per-kind collections. Grants are not members (they are keyed by role, not name).
     /// </summary>
-    public IEnumerable<INamedObjectDiff> EnumerateMembers() =>
-        Columns.Cast<INamedObjectDiff>()
+    public IEnumerable<IObjectMemberDiff> EnumerateMembers() =>
+        Columns.Cast<IObjectMemberDiff>()
             .Concat(Indexes)
             .Concat(PrimaryKeys)
             .Concat(ForeignKeys)

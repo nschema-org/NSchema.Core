@@ -1,4 +1,3 @@
-using NSchema.Model;
 using NSchema.Model.Scripts;
 
 namespace NSchema.State.Domain;

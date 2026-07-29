@@ -8,7 +8,7 @@ namespace NSchema.Diff.Domain.Indexes;
 /// <summary>
 /// Describes a change to a table index.
 /// </summary>
-public sealed record IndexDiff : INamedObjectDiff
+public sealed record IndexDiff : IObjectMemberDiff
 {
     [JsonConstructor]
     private IndexDiff() { }

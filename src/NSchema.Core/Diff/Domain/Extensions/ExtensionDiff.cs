@@ -8,7 +8,7 @@ namespace NSchema.Diff.Domain.Extensions;
 /// <summary>
 /// Describes a change to a database extension.
 /// </summary>
-public sealed record ExtensionDiff : INamedObjectDiff
+public sealed record ExtensionDiff : IDatabaseElementDiff
 {
     [JsonConstructor]
     private ExtensionDiff() { }

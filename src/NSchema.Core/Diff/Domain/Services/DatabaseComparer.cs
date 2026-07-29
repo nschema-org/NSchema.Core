@@ -74,7 +74,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
         Func<TModel, TDiff> buildRemoved,
         Func<TModel, TDiff> buildNew,
         Func<TModel, TModel, SqlIdentifier?, TDiff?> buildModified
-    ) where TModel : DatabaseElement where TDiff : class, INamedObjectDiff
+    ) where TModel : DatabaseElement where TDiff : class, IDatabaseElementDiff
     {
         var result = new List<TDiff>();
         var (forDesired, forCurrent) = NamedEntityMatcher.Match(current, desired);
