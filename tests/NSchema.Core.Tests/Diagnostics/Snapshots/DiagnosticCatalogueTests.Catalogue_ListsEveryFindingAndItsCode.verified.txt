@@ -34,6 +34,7 @@ error    structural  state-store-not-configured                 DoctorDiagnostic
 error    structural  state-store-unreachable                    DoctorDiagnostics.StateStoreUnreachable
 error    structural  state-store-unreadable                     DoctorDiagnostics.StateStoreUnreadable
 info     advisory    state-store-valid                          DoctorDiagnostics.StateStoreValid
+warning  advisory    cannot-be-lowered                          EnforcementDiagnostics.CannotBeLowered
 error    structural  engine-requirement-unsatisfied             EngineDiagnostics.EngineRequirementUnsatisfied
 error    structural  host-requirement-unsatisfied               EngineDiagnostics.HostRequirementUnsatisfied
 error    structural  requires-recreate                          EnumValueRemovalDiagnostics.RequiresRecreate

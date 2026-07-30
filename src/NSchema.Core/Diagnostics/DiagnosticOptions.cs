@@ -21,6 +21,10 @@ public sealed class DiagnosticOptions
     /// <param name="diagnostics">The findings as their producers reported them.</param>
     public IEnumerable<Diagnostic> Apply(IEnumerable<Diagnostic> diagnostics)
     {
+        // Configuration that cannot be honoured is said out loud rather than quietly dropped — but once per
+        // code, however many times the finding it names occurs.
+        var refused = new HashSet<DiagnosticCode>();
+
         foreach (var diagnostic in diagnostics)
         {
             if (Enforcement(diagnostic) is not { } enforcement)
@@ -33,6 +37,10 @@ public sealed class DiagnosticOptions
             if (Lowers(diagnostic, severity) && !CanBeLowered(diagnostic))
             {
                 yield return diagnostic;
+                if (refused.Add(diagnostic.Code))
+                {
+                    yield return EnforcementDiagnostics.CannotBeLowered(diagnostic.Code);
+                }
             }
             else if (severity is { } applied)
             {

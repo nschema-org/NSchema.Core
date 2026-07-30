@@ -101,7 +101,7 @@ public sealed class DiagnosticOptionsTests
         var applied = _sut.Apply([Diagnostic.Error("plan", "missing-dialect", "no dialect")]).ToList();
 
         // Assert
-        applied.ShouldHaveSingleItem().Severity.ShouldBe(DiagnosticSeverity.Error);
+        applied.ShouldContain(d => d.Code == "missing-dialect" && d.Severity == DiagnosticSeverity.Error);
     }
 
     [Fact]
@@ -113,8 +113,42 @@ public sealed class DiagnosticOptionsTests
         // Act
         var applied = _sut.Apply([Diagnostic.Error("plan", "missing-dialect", "no dialect")]).ToList();
 
-        // Assert — it stands rather than vanishing, so the run still fails for the reason it should.
-        applied.ShouldHaveSingleItem().Code.ShouldBe("missing-dialect");
+        // Assert — it stands rather than vanishing, so the run still fails for the reason it should, and the
+        // configuration that could not be honoured is said out loud rather than quietly dropped.
+        applied.Select(d => d.Code).ShouldBe(["missing-dialect", "cannot-be-lowered"]);
+        applied[1].Message.ShouldContain("missing-dialect");
+    }
+
+    [Fact]
+    public void Apply_SaysAConfigurationCannotBeHonoured_OncePerCode()
+    {
+        // Arrange — the same finding can occur many times over; the note about the configuration should not.
+        _sut.ByCode["missing-dialect"] = PolicyEnforcement.Ignore;
+        var findings = new[]
+        {
+            Diagnostic.Error("plan", "missing-dialect", "no dialect"),
+            Diagnostic.Error("plan", "missing-dialect", "no dialect"),
+        };
+
+        // Act
+        var applied = _sut.Apply(findings).ToList();
+
+        // Assert
+        applied.Count(d => d.Code == "cannot-be-lowered").ShouldBe(1);
+    }
+
+    [Fact]
+    public void Apply_SaysNothing_WhenTheConfigurationIsHonoured()
+    {
+        // Arrange
+        _sut.ByCode["risky-type-change"] = PolicyEnforcement.Ignore;
+        _sut.ByCode["missing-dialect"] = PolicyEnforcement.Error;
+
+        // Act — one lowering that is allowed, one raising that always is.
+        var applied = _sut.Apply([Hazard(), Diagnostic.Error("plan", "missing-dialect", "no dialect")]).ToList();
+
+        // Assert
+        applied.ShouldNotContain(d => d.Code == "cannot-be-lowered");
     }
 
     [Fact]
@@ -171,7 +205,7 @@ public sealed class DiagnosticOptionsTests
         var applied = _sut.Apply([structural]).ToList();
 
         // Assert
-        applied.ShouldHaveSingleItem().Severity.ShouldBe(DiagnosticSeverity.Warning);
+        applied.ShouldContain(d => d.Code == "structural-warning" && d.Severity == DiagnosticSeverity.Warning);
     }
 
     [Fact]

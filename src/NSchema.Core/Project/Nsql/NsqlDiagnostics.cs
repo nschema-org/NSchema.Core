@@ -6,7 +6,7 @@ namespace NSchema.Project.Nsql;
 internal static class NsqlDiagnostics
 {
     internal static readonly DiagnosticSource Source = "syntax";
-    internal const DiagnosticSource FormatSource = "format";
+    internal static readonly DiagnosticSource FormatSource = "format";
 
     /// <summary>
     /// A source document that could not be lexed or parsed.
