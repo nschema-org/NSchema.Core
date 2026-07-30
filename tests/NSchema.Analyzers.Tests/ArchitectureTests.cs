@@ -6,19 +6,19 @@ namespace NSchema.Analyzers.Tests;
 /// </summary>
 public sealed class ArchitectureTests
 {
-    public static TheoryData<string> Parts => [.. Architecture.Dependencies.Keys];
+    public static TheoryData<string> Slices => [.. Architecture.Dependencies.Keys];
 
     /// <summary>
-    /// A table that let two parts list each other would permit a cycle by decree, and every reference between them
+    /// A table that let two slices list each other would permit a cycle by decree, and every reference between them
     /// would pass.
     /// </summary>
     [Theory]
-    [MemberData(nameof(Parts))]
-    public void Layering_IsAcyclic(string part)
+    [MemberData(nameof(Slices))]
+    public void Layering_IsAcyclic(string slice)
     {
         // Arrange
         var reachable = new HashSet<string>(StringComparer.Ordinal);
-        var pending = new Queue<string>(Architecture.AllowedFor(part));
+        var pending = new Queue<string>(Architecture.AllowedFor(slice));
 
         // Act
         while (pending.TryDequeue(out var next))
@@ -33,21 +33,21 @@ public sealed class ArchitectureTests
         }
 
         // Assert
-        reachable.ShouldNotContain(part, $"'{part}' can reach itself through the declared layering");
+        reachable.ShouldNotContain(slice, $"'{slice}' can reach itself through the declared layering");
     }
 
     /// <summary>
-    /// A row naming a part that does not exist is an edge to nowhere, which no rule would ever report on.
+    /// A row naming a slice that does not exist is an edge to nowhere, which no rule would ever report on.
     /// </summary>
     [Theory]
-    [MemberData(nameof(Parts))]
-    public void Layering_NamesOnlyDeclaredParts(string part)
+    [MemberData(nameof(Slices))]
+    public void Layering_NamesOnlyDeclaredSlices(string slice)
     {
         // Act
-        var unknown = Architecture.Dependencies[part].Except(Architecture.Slices);
+        var unknown = Architecture.Dependencies[slice].Except(Architecture.Slices);
 
         // Assert
-        unknown.ShouldBeEmpty($"'{part}' declares a dependency on something that is not a part");
+        unknown.ShouldBeEmpty($"'{slice}' declares a dependency on something that is not a slice");
     }
 
     [Fact]
@@ -57,17 +57,17 @@ public sealed class ArchitectureTests
         var missing = Architecture.Kernel.Except(Architecture.Dependencies.Keys);
 
         // Assert
-        missing.ShouldBeEmpty("a kernel part still needs a row saying what it may use");
+        missing.ShouldBeEmpty("a kernel slice still needs a row saying what it may use");
     }
 
     /// <summary>
-    /// The table keeps up with the code. NS0004 catches a part the table has not heard of; this catches the other
+    /// The table keeps up with the code. NS0004 catches a slice the table has not heard of; this catches the other
     /// direction — a row left behind after its folder was renamed away, which governs nothing while looking as
     /// though it governs a slice.
     /// </summary>
     [Theory]
-    [MemberData(nameof(Parts))]
-    public void DeclaredPart_ExistsInTheEngine(string part)
+    [MemberData(nameof(Slices))]
+    public void DeclaredSlice_ExistsInTheEngine(string slice)
     {
         // Act
         var namespaces = typeof(NSchemaApplication).Assembly.GetTypes()
@@ -76,6 +76,6 @@ public sealed class ArchitectureTests
             .Select(space => space!.Split('.')[1]);
 
         // Assert
-        namespaces.ShouldContain(part, $"'{part}' has a row in the layering table but no code");
+        namespaces.ShouldContain(slice, $"'{slice}' has a row in the layering table but no code");
     }
 }

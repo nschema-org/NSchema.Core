@@ -9,7 +9,7 @@ public sealed class ArchitectureDependencyAnalyzerTests
     private readonly ArchitectureDependencyAnalyzer _sut = new();
 
     [Fact]
-    public async Task Reference_WithinOnePart_IsAllowed()
+    public async Task Reference_WithinOneSlices_IsAllowed()
     {
         // Arrange
         const string source = """
@@ -32,7 +32,7 @@ public sealed class ArchitectureDependencyAnalyzerTests
     }
 
     [Fact]
-    public async Task Reference_ToADeclaredPart_IsAllowed()
+    public async Task Reference_ToADeclaredSlice_IsAllowed()
     {
         // Arrange — the table lets Plan see Diff.
         const string source = """
@@ -84,7 +84,7 @@ public sealed class ArchitectureDependencyAnalyzerTests
     }
 
     [Fact]
-    public async Task Reference_ToAnUndeclaredPart_IsReported()
+    public async Task Reference_ToAnUndeclaredSlice_IsReported()
     {
         // Arrange — Diff may see Project and State, and nothing else outside the kernel.
         const string source = """
@@ -204,7 +204,7 @@ public sealed class ArchitectureDependencyAnalyzerTests
     [Fact]
     public async Task Reference_FromADomainType_ToItsOwnApplicationService_IsReported()
     {
-        // Arrange — the table cannot see this one: both sides are the same part.
+        // Arrange — the table cannot see this one: both sides are the same slice.
         const string source = """
             namespace NSchema.Plan
             {
@@ -314,7 +314,7 @@ public sealed class ArchitectureDependencyAnalyzerTests
     [Fact]
     public async Task Reference_ToAnUndeclaredNamespace_IsLeftToTheNamespaceRule()
     {
-        // Arrange — one diagnostic where the part is introduced beats one per reference to it.
+        // Arrange — one diagnostic where the slice is introduced beats one per reference to it.
         const string source = """
             namespace NSchema.Mystery
             {

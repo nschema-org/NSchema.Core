@@ -12,7 +12,7 @@ public sealed class UndeclaredSliceAnalyzerTests
     [InlineData("NSchema")]
     [InlineData("NSchema.Plan")]
     [InlineData("NSchema.Plan.Domain.Services")]
-    public async Task Namespace_UnderADeclaredPart_IsAllowed(string declared)
+    public async Task Namespace_UnderADeclaredSlice_IsAllowed(string declared)
     {
         // Arrange
         var source = $$"""
@@ -30,7 +30,7 @@ public sealed class UndeclaredSliceAnalyzerTests
     }
 
     [Fact]
-    public async Task Namespace_UnderAnUndeclaredPart_IsReported()
+    public async Task Namespace_UnderAnUndeclaredSlice_IsReported()
     {
         // Arrange
         const string source = """
@@ -46,7 +46,7 @@ public sealed class UndeclaredSliceAnalyzerTests
         // Assert
         diagnostics.Ids().ShouldBe(["NS0004"]);
         diagnostics[0].GetMessage().ShouldBe(
-            "Namespace 'NSchema.Mystery.Domain' introduces the part 'Mystery', "
+            "Namespace 'NSchema.Mystery.Domain' introduces the slice 'Mystery', "
             + "which is not declared in the layering table");
     }
 
