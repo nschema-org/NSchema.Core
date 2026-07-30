@@ -5,8 +5,8 @@ namespace NSchema.Project.Nsql;
 /// </summary>
 internal static class NsqlDiagnostics
 {
-    private const string Source = "syntax";
-    private const string FormatSource = "format";
+    internal static readonly DiagnosticSource Source = "syntax";
+    internal const DiagnosticSource FormatSource = "format";
 
     /// <summary>
     /// A source document that could not be lexed or parsed.
@@ -19,7 +19,8 @@ internal static class NsqlDiagnostics
     /// value is still valid, just not formatted.
     /// </summary>
     public static NsqlDiagnostic Formatting(SourcePosition position) =>
-        new(FormatSource, "formatting", "This statement is not canonically formatted.", DiagnosticSeverity.Warning, position);
+        new(FormatSource, "formatting", "This statement is not canonically formatted.", DiagnosticSeverity.Warning, position)
+        { Kind = DiagnosticKind.Advisory };
 
     /// <summary>
     /// A file that could not be read at all. A file-level finding has no position in the source; it points

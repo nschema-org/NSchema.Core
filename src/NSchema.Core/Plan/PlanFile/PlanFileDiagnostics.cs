@@ -5,7 +5,7 @@ namespace NSchema.Plan.PlanFile;
 /// </summary>
 internal static class PlanFileDiagnostics
 {
-    private const string Source = "plan-file";
+    internal static readonly DiagnosticSource Source = "plan-file";
 
     /// <summary>A plan file that could not be read from disk.</summary>
     public static Diagnostic UnreadableFile(string path, Exception exception) => Diagnostic.Error(Source, "unreadable-plan-file",

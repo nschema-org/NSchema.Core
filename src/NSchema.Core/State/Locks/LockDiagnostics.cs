@@ -5,7 +5,7 @@ namespace NSchema.State.Locks;
 /// </summary>
 internal static class LockDiagnostics
 {
-    private const string Source = "lock";
+    internal static readonly DiagnosticSource Source = "lock";
 
     /// <summary>
     /// A deliberate skip-lock run; names the held lock it is running past when there is one.

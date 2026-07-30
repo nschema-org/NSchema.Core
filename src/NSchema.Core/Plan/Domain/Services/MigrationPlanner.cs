@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Services;
 using NSchema.Model;
@@ -16,16 +17,20 @@ namespace NSchema.Plan.Domain.Services;
 /// <param name="projectPolicies">Policies that validate the declared project.</param>
 /// <param name="planPolicies">Policies that validate the complete plan (e.g. destructive-change checks).</param>
 /// <param name="dialect">The SQL dialect the plan's statements are rendered with. Required for planning.</param>
+/// <param name="options">How the findings the policies report are enforced.</param>
 internal sealed class MigrationPlanner(
     IProjectComparer comparer,
     IPlanLinearizer linearizer,
     IEnumerable<IProjectPolicy> projectPolicies,
     IEnumerable<IPlanPolicy> planPolicies,
+    IOptions<DiagnosticOptions>? options = null,
     SqlDialect? dialect = null
 ) : IMigrationPlanner
 {
+    private DiagnosticOptions Enforcement => options?.Value ?? new DiagnosticOptions();
+
     public Result Validate(ProjectDefinition project) =>
-        Result.From(projectPolicies.SelectMany(p => p.Validate(project)));
+        Result.From(Enforcement.Apply(projectPolicies.SelectMany(p => p.Validate(project))));
 
     public Result<MigrationPlan> Plan(CurrentState current, ProjectDefinition project, PlanningScope scope)
     {
@@ -62,7 +67,7 @@ internal sealed class MigrationPlanner(
         var plan = Realize(diff, dependencies, dialect, ManagedAfterApply(current, project, scope), diagnostics);
 
         // Validate the complete plan — post-render, so policies see exactly what an apply would execute.
-        diagnostics.AddRange(planPolicies.SelectMany(p => p.Validate(plan)));
+        diagnostics.AddRange(Enforcement.Apply(planPolicies.SelectMany(p => p.Validate(plan))));
 
         return diagnostics.ToResult(plan);
     }

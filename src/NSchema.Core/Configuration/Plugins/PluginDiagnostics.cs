@@ -9,7 +9,7 @@ namespace NSchema.Configuration.Plugins;
 /// </summary>
 internal static class PluginDiagnostics
 {
-    private const string Source = "config";
+    internal static readonly DiagnosticSource Source = "config";
 
     /// <summary>
     /// A plugin label declared by more than one <c>PLUGIN</c> statement.

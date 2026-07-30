@@ -7,7 +7,7 @@ namespace NSchema.Plan.Domain.Services;
 /// </summary>
 internal static class PlanDiagnostics
 {
-    private const string Source = "plan";
+    internal static readonly DiagnosticSource Source = "plan";
 
     /// <summary>
     /// Planning without a registered SQL dialect (the plan's statements cannot be rendered).

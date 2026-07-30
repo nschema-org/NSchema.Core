@@ -8,7 +8,7 @@ namespace NSchema.Plan.Policies;
 /// </summary>
 internal static class EnumValueRemovalDiagnostics
 {
-    private const string Source = "enum-value-removal";
+    internal static readonly DiagnosticSource Source = "enum-value-removal";
 
     /// <summary>
     /// An enum change that removes or reorders values, which cannot be planned.

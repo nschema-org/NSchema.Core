@@ -5,7 +5,7 @@ namespace NSchema.Configuration.Plugins;
 /// </summary>
 internal static class LockFileDiagnostics
 {
-    private const string Source = "lockfile";
+    internal static readonly DiagnosticSource Source = "lockfile";
 
     /// <summary>
     /// The lockfile could not be written.

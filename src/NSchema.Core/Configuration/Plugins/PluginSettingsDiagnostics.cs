@@ -5,7 +5,7 @@ namespace NSchema.Configuration.Plugins;
 /// </summary>
 internal static class PluginSettingsDiagnostics
 {
-    private const string Source = "settings";
+    internal static readonly DiagnosticSource Source = "settings";
 
     /// <summary>
     /// A data-annotation failure on the bound instance.

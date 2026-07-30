@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Tables;
 using NSchema.Model;
@@ -10,32 +9,11 @@ namespace NSchema.Plan.Policies;
 /// <summary>
 /// A plan policy that flags changes which are valid against the schema but can fail at apply time depending on the data already in the table.
 /// </summary>
-/// <remarks>
-/// Examples of diagnostics: required columns added without a default, columns tightened to NOT NULL, type changes
-/// whose cast can fail, and uniqueness added over pre-existing columns. Each hazard is reported as its own
-/// diagnostic, at the severity configured by <see cref="DataHazardOptions"/>.
-/// </remarks>
-internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IPlanPolicy
+internal sealed class DataHazardPolicy : IPlanPolicy
 {
-    public IEnumerable<Diagnostic> Validate(MigrationPlan plan)
-    {
-        var diff = plan.Diff;
-        if (options.Value.Policy == PolicyEnforcement.Ignore)
-        {
-            return [];
-        }
+    public IEnumerable<Diagnostic> Validate(MigrationPlan plan) => Hazards(plan.Diff);
 
-        var severity = options.Value.Policy switch
-        {
-            PolicyEnforcement.Allow => DiagnosticSeverity.Info,
-            PolicyEnforcement.Warn => DiagnosticSeverity.Warning,
-            _ => DiagnosticSeverity.Error,
-        };
-
-        return Hazards(diff, severity);
-    }
-
-    private static IEnumerable<Diagnostic> Hazards(DatabaseDiff diff, DiagnosticSeverity severity)
+    private static IEnumerable<Diagnostic> Hazards(DatabaseDiff diff)
     {
         // Only a modified table can hold data at apply time: an added table is empty and a removed one is gone,
         // so hazards exist nowhere else.
@@ -43,7 +21,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
         {
             foreach (var table in schema.Tables.Where(t => t.Change == ChangeKind.Modify))
             {
-                foreach (var hazard in TableHazards(table, severity))
+                foreach (var hazard in TableHazards(table))
                 {
                     yield return hazard;
                 }
@@ -51,7 +29,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
         }
     }
 
-    private static IEnumerable<Diagnostic> TableHazards(TableDiff table, DiagnosticSeverity severity)
+    private static IEnumerable<Diagnostic> TableHazards(TableDiff table)
     {
         foreach (var column in table.Columns)
         {
@@ -61,7 +39,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
             // A matched backfill migration handles the transition (the planner decomposes the add around it), so it silences this hazard.
             if (column is { Change: ChangeKind.Add, Definition: { IsNullable: false, DefaultExpression: null, IsIdentity: false, GeneratedExpression: null }, MigrationScript: null })
             {
-                yield return DataHazardDiagnostics.RequiredColumnWithoutDefault(path, severity);
+                yield return DataHazardDiagnostics.RequiredColumnWithoutDefault(path);
             }
 
             if (column.Change != ChangeKind.Modify)
@@ -71,14 +49,14 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
 
             if (column.Nullability is { New: false })
             {
-                yield return DataHazardDiagnostics.ColumnBecomesRequired(path, severity);
+                yield return DataHazardDiagnostics.ColumnBecomesRequired(path);
             }
 
             if (column.Type is { Old: { } oldType, New: { } newType }
                 && oldType.ConversionRiskTo(newType) == TypeConversionRisk.MayFail
                 && column.MigrationScript is null)
             {
-                yield return DataHazardDiagnostics.RiskyTypeChange(path, oldType, newType, severity);
+                yield return DataHazardDiagnostics.RiskyTypeChange(path, oldType, newType);
             }
         }
 
@@ -95,7 +73,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
             var existing = ExistingColumns(primaryKey.Definition?.ColumnNames, addedColumns);
             if (existing.Count > 0)
             {
-                yield return DataHazardDiagnostics.PrimaryKeyOverExistingData(table.Address.Member(primaryKey.Name), existing, severity);
+                yield return DataHazardDiagnostics.PrimaryKeyOverExistingData(table.Address.Member(primaryKey.Name), existing);
             }
         }
 
@@ -104,7 +82,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
             var existing = ExistingColumns(constraint.Definition?.ColumnNames, addedColumns);
             if (existing.Count > 0)
             {
-                yield return DataHazardDiagnostics.UniqueConstraintOverExistingData(table.Address.Member(constraint.Name), existing, severity);
+                yield return DataHazardDiagnostics.UniqueConstraintOverExistingData(table.Address.Member(constraint.Name), existing);
             }
         }
 
@@ -118,7 +96,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
             // An expression key is opaque, so it is assumed to read pre-existing data.
             if (definition.Columns.Any(k => k.Column is not { } column || !addedColumns.Contains(column)))
             {
-                yield return DataHazardDiagnostics.UniqueIndexOverExistingData(table.Address.Member(index.Name), severity);
+                yield return DataHazardDiagnostics.UniqueIndexOverExistingData(table.Address.Member(index.Name));
             }
         }
     }

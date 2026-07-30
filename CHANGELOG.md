@@ -12,6 +12,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 ### Changed
 
+- **Any policy's findings can be configured, not just the built-in ones.** `WithDiagnostic(code, enforcement)` configures one finding and `WithDiagnosticsFrom(source, enforcement)` a producer's whole family, replacing `DestructiveActionOptions` and `DataHazardOptions` — a policy no longer needs its own options type and a builder method to be configurable, so a policy you register is configurable too. A policy reports at the severity it judges natural and the engine applies the override, so `WithDestructiveActions` and `WithDataHazards` remain as named shortcuts for the two built-ins.
 - **A diagnostic's `Source` is what produced it, and only that.** The differ reported findings under four topics (`scope`, `directives`, `run-once`, `data-migrations`) where the producer was the differ; those topics now live in the code, which is where a finding's identity belongs.
 - **Column alterations are unified.** Dialects now receive a single `AlterColumn` action for a column's type and nullability changes, which they can render as one or more statements.
 - **Member diffs are built by factory.** `PrimaryKeyDiff`, `ForeignKeyDiff`, `UniqueConstraintDiff`, `CheckConstraintDiff`, `ExclusionConstraintDiff`, `IndexDiff` and `TriggerDiff` expose `Added(definition)`, `Removed(name)` and `CommentChanged(name, change)` in place of a constructor.
@@ -91,6 +92,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 ### Added
 
+- **A finding says whether it may be overruled.** `DiagnosticKind` marks a finding as `Structural` — NSchema cannot do what was asked, so silencing it would produce something wrong rather than something permitted — or `Advisory`, a judgement the caller is entitled to overrule. Enforcement can raise any finding, but can only lower an advisory one, at whatever severity it currently carries. Reporting below error severity declares a finding advisory, so a warning or an informational finding is silenceable by default and an error is not — and because the kind is fixed when the finding is created, raising one later cannot change what a caller is allowed to silence.
 - **A diagnostic's source is a `DiagnosticSource`.** The producer's name is typed rather than a bare string, and holds to the same shape as a code — a user groups and configures by it, so it has to be usable as a settings key too.
 - **A diagnostic carries a code.** `Diagnostic.Code` names a finding independently of how it is worded, so a message can be reworded without breaking anything that refers to it. A code is restricted to hyphen-separated lowercase words, so it is usable as a settings key, and an invalid one is rejected rather than rewritten. Every code is unique across NSchema — the producer is not always known at compile time, so the code alone addresses a finding.
 - **A diagnostic collection folds to a result.** `ToResult()` and `ToResult(value)` move onto `DiagnosticCollection<TDiagnostic>`, so accumulating findings and returning them needs no collector. A collection can also be built from a collection expression.

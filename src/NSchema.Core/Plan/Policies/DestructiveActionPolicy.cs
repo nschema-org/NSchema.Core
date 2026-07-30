@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.CompositeTypes;
 using NSchema.Diff.Domain.Constraints;
@@ -24,33 +23,17 @@ using NSchema.Plan.Domain.Views;
 namespace NSchema.Plan.Policies;
 
 /// <summary>
-/// A plan policy that checks for destructive changes and applies the configured policy.
-/// Non-fatal outcomes are returned as Info/Warning diagnostics so the pipeline can surface them without aborting.
+/// A plan policy that reports the destructive changes in a plan.
 /// </summary>
-internal sealed class DestructiveActionPolicy(IOptions<DestructiveActionOptions> options) : IPlanPolicy
+internal sealed class DestructiveActionPolicy : IPlanPolicy
 {
     public IEnumerable<Diagnostic> Validate(MigrationPlan plan)
     {
-        var diff = plan.Diff;
-        if (options.Value.Policy == PolicyEnforcement.Ignore)
-        {
-            return [];
-        }
+        var destructive = DestructiveChanges(plan.Diff).Distinct().ToList();
 
-        var destructive = DestructiveChanges(diff).Distinct().ToList();
-        if (destructive.Count == 0)
-        {
-            return [];
-        }
-
-        var typeString = string.Join(", ", destructive);
-
-        return options.Value.Policy switch
-        {
-            PolicyEnforcement.Allow => [DestructiveActionDiagnostics.Allowed(typeString)],
-            PolicyEnforcement.Warn => [DestructiveActionDiagnostics.Warned(typeString)],
-            _ => [DestructiveActionDiagnostics.Blocked(typeString)]
-        };
+        return destructive.Count == 0
+            ? []
+            : [DestructiveActionDiagnostics.DestructiveChange(string.Join(", ", destructive))];
     }
 
     private static IEnumerable<string> DestructiveChanges(DatabaseDiff diff)

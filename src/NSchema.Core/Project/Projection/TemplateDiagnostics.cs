@@ -9,7 +9,7 @@ namespace NSchema.Project.Projection;
 /// </summary>
 internal static class TemplateDiagnostics
 {
-    private const string Source = "templates";
+    internal static readonly DiagnosticSource Source = "templates";
 
     /// <summary>
     /// The same template name declared more than once.

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Schemas;
 using NSchema.Diff.Domain.Services;
@@ -32,7 +33,9 @@ public sealed class MigrationPlannerTests
     private readonly List<IProjectPolicy> _projectPolicies = [];
     private readonly List<IPlanPolicy> _planPolicies = [];
 
-    private MigrationPlanner Sut => new(_differ, _linearizer, _projectPolicies, _planPolicies, new StubSqlDialect());
+    private readonly DiagnosticOptions _diagnosticOptions = new();
+
+    private MigrationPlanner Sut => new(_differ, _linearizer, _projectPolicies, _planPolicies, Options.Create(_diagnosticOptions), new StubSqlDialect());
 
     public MigrationPlannerTests()
     {
@@ -283,6 +286,25 @@ public sealed class MigrationPlannerTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         result.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("inert block");
+    }
+
+    [Fact]
+    public void Plan_EnforcementAppliesToAnyPolicysFindings_NotJustTheBuiltInOnes()
+    {
+        // Arrange — a policy the engine knows nothing about, reporting a judgement that would block the plan.
+        var policy = Substitute.For<IPlanPolicy>();
+        policy.Validate(Arg.Any<MigrationPlan>())
+            .Returns([Diagnostic.Error("my-rules", "no-wide-tables", "too many columns")
+                with { Kind = DiagnosticKind.Advisory }]);
+        _planPolicies.Add(policy);
+        _diagnosticOptions.ByCode["no-wide-tables"] = PolicyEnforcement.Warn;
+
+        // Act
+        var result = Sut.Plan(_current, _desired, PlanningScope.All);
+
+        // Assert — downgraded, so the plan is no longer blocked by it.
+        result.IsSuccess.ShouldBeTrue();
+        result.Warnings.ShouldContain(d => d.Code == "no-wide-tables");
     }
 
     [Fact]

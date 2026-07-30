@@ -188,7 +188,7 @@ public sealed class ProjectComparerTests
     {
         // Arrange — the hazard policy sees the complete diff, so a matched backfill silences the NOT-NULL-add
         // warning it would otherwise raise.
-        var policy = new DataHazardPolicy(Options.Create(new DataHazardOptions()));
+        var policy = new DataHazardPolicy();
 
         // Act — the same required-column add, once without a backfill (hazard) and once with (suppressed).
         var unmatched = Sut.Compare(UsersWithId(), new ProjectDefinition(UsersWithEmail(required: true)));

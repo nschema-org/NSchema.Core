@@ -5,11 +5,11 @@ namespace NSchema.Operations.Workflow;
 /// </summary>
 internal static class WorkflowDiagnostics
 {
-    private const string PlanSource = "plan";
+    internal static readonly DiagnosticSource PlanSource = "plan";
 
-    private const string RefreshSource = "refresh";
+    internal static readonly DiagnosticSource RefreshSource = "refresh";
 
-    private const string StateSource = "state";
+    internal static readonly DiagnosticSource StateSource = "state";
 
     /// <summary>
     /// Planning without a configured state store (the ledger is half of the current state).

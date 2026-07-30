@@ -7,7 +7,7 @@ namespace NSchema.Project.Policies;
 /// </summary>
 internal static class StructuralIntegrityDiagnostics
 {
-    private const string Source = "structural-integrity";
+    internal static readonly DiagnosticSource Source = "structural-integrity";
 
     /// <summary>
     /// An index name reused within a schema, where index and index-backed constraint names are scoped.

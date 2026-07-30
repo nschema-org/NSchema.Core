@@ -9,7 +9,7 @@ namespace NSchema.Project;
 /// </summary>
 internal static class ProjectDiagnostics
 {
-    private const string Source = "project";
+    internal static readonly DiagnosticSource Source = "project";
 
     /// <summary>
     /// No DDL file matched any registered project source.

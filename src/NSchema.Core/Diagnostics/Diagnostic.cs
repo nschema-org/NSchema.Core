@@ -10,6 +10,11 @@ namespace NSchema.Diagnostics;
 public record Diagnostic(DiagnosticSource Source, DiagnosticCode Code, FormattedText Text, DiagnosticSeverity Severity)
 {
     /// <summary>
+    /// What sort of finding this is.
+    /// </summary>
+    public DiagnosticKind Kind { get; init; } = DiagnosticKind.Structural;
+
+    /// <summary>
     /// The message as plain text.
     /// </summary>
     public string Message => Text.ToString();
@@ -21,7 +26,8 @@ public record Diagnostic(DiagnosticSource Source, DiagnosticCode Code, Formatted
     /// <param name="code">What identifies this finding.</param>
     /// <param name="message">A descriptive message about the finding.</param>
     /// <returns>The created <see cref="Diagnostic"/>.</returns>
-    public static Diagnostic Info(DiagnosticSource source, DiagnosticCode code, FormattedText message) => new(source, code, message, DiagnosticSeverity.Info);
+    public static Diagnostic Info(DiagnosticSource source, DiagnosticCode code, FormattedText message) =>
+        new(source, code, message, DiagnosticSeverity.Info) { Kind = DiagnosticKind.Advisory };
 
     /// <summary>
     /// Creates a warning diagnostic.
@@ -30,7 +36,8 @@ public record Diagnostic(DiagnosticSource Source, DiagnosticCode Code, Formatted
     /// <param name="code">What identifies this finding.</param>
     /// <param name="message">A descriptive message about the finding.</param>
     /// <returns>The created <see cref="Diagnostic"/>.</returns>
-    public static Diagnostic Warning(DiagnosticSource source, DiagnosticCode code, FormattedText message) => new(source, code, message, DiagnosticSeverity.Warning);
+    public static Diagnostic Warning(DiagnosticSource source, DiagnosticCode code, FormattedText message) =>
+        new(source, code, message, DiagnosticSeverity.Warning) { Kind = DiagnosticKind.Advisory };
 
     /// <summary>
     /// Creates an error diagnostic.

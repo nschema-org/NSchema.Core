@@ -7,8 +7,9 @@ namespace NSchema.Tests.Diagnostics;
 /// </summary>
 /// <remarks>
 /// A code keys a finding in configuration and documentation, so it is a contract: this snapshot makes adding,
-/// renaming or removing one a deliberate, reviewable change. The codes are literals inside catalogue members, so
-/// they are read from the sources — nothing can enumerate them at runtime without invoking every member.
+/// renaming or removing one a deliberate, reviewable change. It carries each finding's kind too, so what a user
+/// is allowed to silence is reviewable in one place — an advisory finding can be lowered, a structural one cannot. Both are literals inside catalogue members, so they are read
+/// from the sources — nothing can enumerate them at runtime without invoking every member.
 /// </remarks>
 public sealed class DiagnosticCatalogueTests
 {
@@ -16,35 +17,38 @@ public sealed class DiagnosticCatalogueTests
 
     private static readonly Regex Code = new("\"(?<code>[a-z0-9]+(?:-[a-z0-9]+)*)\"");
 
-    private static List<(string Catalogue, string Member, string Code)> Catalogue()
+    private static readonly Regex Severity = new("""Diagnostic\.(?<severity>Error|Warning|Info)\(|DiagnosticSeverity\.(?<severity>Error|Warning|Info)""");
+
+    private static List<(string Catalogue, string Member, string Code, string Severity, string Kind)> Catalogue()
     {
-        var findings = new List<(string, string, string)>();
+        var findings = new List<(string, string, string, string, string)>();
         foreach (var file in Directory.EnumerateFiles(SourceRoot(), "*Diagnostics.cs", SearchOption.AllDirectories))
         {
             var catalogue = Path.GetFileNameWithoutExtension(file);
-            string? member = null;
-            var claimed = new HashSet<string>();
-            foreach (var line in File.ReadLines(file))
+            // Split the file into members so a finding's code and kind are read from its own body.
+            var text = File.ReadAllText(file);
+            var declarations = Member.Matches(text).ToList();
+            for (var i = 0; i < declarations.Count; i++)
             {
-                if (Member.Match(line) is { Success: true } declaration)
-                {
-                    member = declaration.Groups["member"].Value;
-                }
-
-                // The first code after a declaration is that member's; a member worded two ways repeats it.
-                if (member is null || !claimed.Add(member))
+                var start = declarations[i].Index;
+                var end = i + 1 < declarations.Count ? declarations[i + 1].Index : text.Length;
+                var body = text[start..end];
+                if (Code.Match(body) is not { Success: true } code)
                 {
                     continue;
                 }
 
-                if (Code.Match(line) is { Success: true } code)
-                {
-                    findings.Add((catalogue, member, code.Groups["code"].Value));
-                }
-                else
-                {
-                    claimed.Remove(member);
-                }
+                // Reporting below error severity mints an advisory finding, so the kind follows the factory
+                // unless the member overrides it.
+                var severity = Severity.Match(body) is { Success: true } match
+                    ? match.Groups["severity"].Value.ToLowerInvariant()
+                    : "?";
+                var kind = body.Contains("DiagnosticKind.Advisory", StringComparison.Ordinal) ? "advisory"
+                    : body.Contains("DiagnosticKind.Structural", StringComparison.Ordinal) ? "structural"
+                    : severity == "error" ? "structural"
+                    : "advisory";
+
+                findings.Add((catalogue, declarations[i].Groups["member"].Value, code.Groups["code"].Value, severity, kind));
             }
         }
 
@@ -53,7 +57,7 @@ public sealed class DiagnosticCatalogueTests
 
     [Fact]
     public Task Catalogue_ListsEveryFindingAndItsCode() =>
-        Verify(string.Join("\n", Catalogue().Select(f => $"{f.Code,-42} {f.Catalogue}.{f.Member}")));
+        Verify(string.Join("\n", Catalogue().Select(f => $"{f.Severity,-8} {f.Kind,-11} {f.Code,-42} {f.Catalogue}.{f.Member}")));
 
     [Fact]
     public void EveryCodeIsUnique()

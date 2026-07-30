@@ -9,11 +9,11 @@ namespace NSchema.Operations;
 /// </summary>
 internal static class DoctorDiagnostics
 {
-    private const string DatabaseSource = "database";
+    internal static readonly DiagnosticSource DatabaseSource = "database";
 
-    private const string StateStoreSource = "state-store";
+    internal static readonly DiagnosticSource StateStoreSource = "state-store";
 
-    private const string StateLockSource = "state-lock";
+    internal static readonly DiagnosticSource StateLockSource = "state-lock";
 
     /// <summary>
     /// No database is configured, so the application is planning offline.
