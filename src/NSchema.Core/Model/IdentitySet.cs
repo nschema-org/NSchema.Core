@@ -5,7 +5,7 @@ namespace NSchema.Model;
 /// <summary>
 /// A set of database identities, structured by the level they live at.
 /// </summary>
-public sealed record IdentitySet(IReadOnlyList<DatabaseAddress>? DatabaseObjects = null, IReadOnlyList<ObjectAddress>? SchemaObjects = null )
+public sealed record IdentitySet(IReadOnlyList<DatabaseAddress>? DatabaseObjects = null, IReadOnlyList<ObjectAddress>? SchemaObjects = null)
 {
     /// <summary>
     /// The set containing no identities.

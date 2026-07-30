@@ -1,9 +1,9 @@
 using NSchema.Model;
+using NSchema.Model.Scripts;
 using NSchema.State;
 using NSchema.State.Domain;
 using NSchema.State.Plugins;
 using NSubstitute.ExceptionExtensions;
-using NSchema.Model.Scripts;
 
 namespace NSchema.Tests.State;
 

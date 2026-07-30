@@ -123,7 +123,8 @@ public sealed class DiagnosticOptionsTests
         // Arrange — the change is expressible and correct; whether it is wanted is the caller's call.
         _sut.ByCode["destructive-change"] = PolicyEnforcement.Allow;
         var destructive = Diagnostic.Error("destructive-actions", "destructive-change", "drops a table")
-            with { Kind = DiagnosticKind.Advisory };
+            with
+        { Kind = DiagnosticKind.Advisory };
 
         // Act
         var applied = _sut.Apply([destructive]).ToList();
@@ -163,7 +164,8 @@ public sealed class DiagnosticOptionsTests
         // warnings-as-errors setting, say) does not change what a caller is allowed to silence.
         _sut.ByCode["structural-warning"] = PolicyEnforcement.Ignore;
         var structural = Diagnostic.Warning("plan", "structural-warning", "cannot be silenced")
-            with { Kind = DiagnosticKind.Structural };
+            with
+        { Kind = DiagnosticKind.Structural };
 
         // Act
         var applied = _sut.Apply([structural]).ToList();

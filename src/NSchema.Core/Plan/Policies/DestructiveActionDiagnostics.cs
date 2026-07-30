@@ -12,5 +12,6 @@ internal static class DestructiveActionDiagnostics
     /// </summary>
     public static Diagnostic DestructiveChange(string actions) =>
         Diagnostic.Error(Source, "destructive-change", $"This plan contains destructive actions: {actions}.")
-            with { Kind = DiagnosticKind.Advisory };
+            with
+        { Kind = DiagnosticKind.Advisory };
 }

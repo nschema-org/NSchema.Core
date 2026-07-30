@@ -2,10 +2,10 @@ using System.Text;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
+using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
 using NSchema.State;
 using NSchema.State.Domain;
-using NSchema.Model.Scripts;
 
 namespace NSchema.Tests.State;
 

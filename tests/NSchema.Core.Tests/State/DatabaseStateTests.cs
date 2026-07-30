@@ -1,6 +1,6 @@
 using NSchema.Model;
-using NSchema.State.Domain;
 using NSchema.Model.Scripts;
+using NSchema.State.Domain;
 
 namespace NSchema.Tests.State;
 
