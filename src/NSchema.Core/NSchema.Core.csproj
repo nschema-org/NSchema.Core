@@ -59,4 +59,15 @@
     <Using Include="NSchema.Extensions" />
   </ItemGroup>
 
+  <!--
+    The architecture rules. OutputItemType="Analyzer" hands the built assembly to the compiler instead of linking against it;
+    PrivateAssets keeps it out of the published package, which matters because this project packs.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\NSchema.Analyzers\NSchema.Analyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
+  </ItemGroup>
+
 </Project>
