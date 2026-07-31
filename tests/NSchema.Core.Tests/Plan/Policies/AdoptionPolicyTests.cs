@@ -46,6 +46,6 @@ public sealed class AdoptionPolicyTests
 
         // Assert
         diagnostic.Message.ShouldContain("7 existing objects");
-        diagnostic.Message.ShouldContain("app.t1, app.t2, app.t3, app.t4, app.t5, and 2 more");
+        diagnostic.Message.ShouldContain("app.t1, app.t2, app.t3, app.t4, app.t5, and 2 others");
     }
 }
