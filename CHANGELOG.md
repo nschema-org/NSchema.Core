@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **Policy enforcement ignored on apply/destroy.** Running a plan or apply will now correctly respect policy enforcement adjustments, so destructive actions can be made allowed.
 - **Implicit schemas are created/dropped during plans.** Implicit schemas (like `public` or `dbo`) are now correctly ignored while planning.
+- **Implicit schemas are included in imports.** Implicit schemas are now correctly ignored while importing.
 
 ## [5.0.0] - 2026-08-01
 
