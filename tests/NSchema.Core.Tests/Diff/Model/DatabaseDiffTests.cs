@@ -1,3 +1,4 @@
+using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Columns;
 using NSchema.Diff.Domain.Constraints;
 using NSchema.Diff.Domain.Enums;
@@ -6,17 +7,16 @@ using NSchema.Diff.Domain.Schemas;
 using NSchema.Diff.Domain.Services;
 using NSchema.Diff.Domain.Tables;
 using NSchema.Diff.Domain.Views;
-using NSchema.Diff.Domain;
+using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Domains;
 using NSchema.Model.Enums;
 using NSchema.Model.Extensions;
-using NSchema.Model.Types;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
+using NSchema.Model.Types;
 using NSchema.Model.Views;
-using NSchema.Model;
 
 namespace NSchema.Tests.Diff.Model;
 

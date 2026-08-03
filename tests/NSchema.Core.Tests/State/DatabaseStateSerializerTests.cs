@@ -1,13 +1,13 @@
+using System.Text;
+using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Extensions;
-using NSchema.Model.Types;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
-using NSchema.Model;
-using NSchema.State.Domain;
+using NSchema.Model.Types;
 using NSchema.State;
-using System.Text;
+using NSchema.State.Domain;
 
 namespace NSchema.Tests.State;
 

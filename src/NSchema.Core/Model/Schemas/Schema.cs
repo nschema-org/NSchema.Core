@@ -1,12 +1,12 @@
+using System.Diagnostics;
 using NSchema.Model.CompositeTypes;
 using NSchema.Model.Domains;
 using NSchema.Model.Enums;
-using NSchema.Model.Types;
 using NSchema.Model.Routines;
 using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
+using NSchema.Model.Types;
 using NSchema.Model.Views;
-using System.Diagnostics;
 
 namespace NSchema.Model.Schemas;
 
