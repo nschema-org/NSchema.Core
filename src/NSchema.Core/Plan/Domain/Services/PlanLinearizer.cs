@@ -40,11 +40,13 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             EmitSchema(schema, actions);
         }
 
-        // Tables and views are each emitted in one cross-schema pass: their create/drop order is governed by a
-        // dependency sort (created after what they need, dropped before it), which the per-schema walk above
-        // cannot express — a foreign key or a view body may reach into another schema.
+        // Tables, views, and routines are each emitted in one cross-schema pass: their create/drop order is
+        // governed by a dependency sort (created after what they need, dropped before it), which the per-schema
+        // walk above cannot express — a foreign key, a view body, or a routine's calls may reach into another
+        // schema.
         EmitTables(diff, dependencies, capabilities, actions);
         EmitViews(diff, dependencies, actions);
+        EmitRoutines(diff, dependencies, actions);
 
         actions = [.. MigrationActionOrdering.Order(actions)];
 
@@ -287,7 +289,6 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitSchemaAttributes(schema, actions);
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
-                EmitRoutines(schema, actions);
                 EmitDomains(schema, actions);
                 EmitCompositeTypes(schema, actions);
                 break;
@@ -298,7 +299,6 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 // the DropSchema, and tables and views are emitted by their own cross-schema passes.
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
-                EmitRoutines(schema, actions);
                 EmitDomains(schema, actions);
                 EmitCompositeTypes(schema, actions);
                 actions.Add(new DropSchema(schema.Name));
@@ -312,7 +312,6 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitSchemaAttributes(schema, actions);
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
-                EmitRoutines(schema, actions);
                 EmitDomains(schema, actions);
                 EmitCompositeTypes(schema, actions);
                 break;
@@ -368,24 +367,47 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitRoutines(SchemaDiff schema, List<MigrationAction> actions) =>
-        EmitObjects(schema.Routines, actions,
-            r => r.Definition,
-            (r, definition) => new CreateRoutine(r.Schema, definition),
-            r => new DropRoutine(new ObjectAddress(r.Schema, r.Name), r.RoutineKind),
-            (r, renamedFrom) => new RenameRoutine(new ObjectAddress(r.Schema, renamedFrom), r.Name, r.RoutineKind),
-            (r, comment) => new SetRoutineComment(new ObjectAddress(r.Schema, r.Name), comment.Old, comment.New, r.RoutineKind),
-            r =>
+    /// <summary>
+    /// Emits the routine actions across every schema: creates in dependency order — a body may call a routine
+    /// created in the same plan — and drops in the reverse.
+    /// </summary>
+    private static void EmitRoutines(DatabaseDiff diff, PlanDependencies dependencies, List<MigrationAction> actions)
+    {
+        var routines = diff.Schemas.SelectMany(schema => schema.Routines).ToList();
+
+        foreach (var routine in routines)
+        {
+            if (routine.Change is not (ChangeKind.Add or ChangeKind.Remove) && routine.RenamedFrom is { } renamedFrom)
             {
+                actions.Add(new RenameRoutine(new ObjectAddress(routine.Schema, renamedFrom), routine.Name, routine.RoutineKind));
+            }
+            if (routine.Change != ChangeKind.Remove && routine.Comment is { } comment)
+            {
+                actions.Add(new SetRoutineComment(new ObjectAddress(routine.Schema, routine.Name), comment.Old, comment.New, routine.RoutineKind));
+            }
+        }
+
+        foreach (var routine in InCreationOrder([.. routines.Where(r => r.Change != ChangeKind.Remove)], dependencies))
+        {
+            if (routine.Definition is not { } definition)
+            {
+                continue;
+            }
+
+            actions.Add(routine.Change == ChangeKind.Add
+                ? new CreateRoutine(routine.Schema, definition)
                 // A signature (or kind) change recreates (a replace under different arguments would create a
                 // separate overload); a definition-only change replaces in place.
-                if (r.Definition is { } definition)
-                {
-                    actions.Add(r.RequiresRecreate
-                        ? new RecreateRoutine(r.Schema, definition)
-                        : new ReplaceRoutine(r.Schema, definition));
-                }
-            });
+                : routine.RequiresRecreate
+                    ? new RecreateRoutine(routine.Schema, definition)
+                    : new ReplaceRoutine(routine.Schema, definition));
+        }
+
+        foreach (var routine in InRemovalOrder([.. routines.Where(r => r.Change == ChangeKind.Remove)], dependencies))
+        {
+            actions.Add(new DropRoutine(new ObjectAddress(routine.Schema, routine.Name), routine.RoutineKind));
+        }
+    }
 
     private static void EmitDomains(SchemaDiff schema, List<MigrationAction> actions) =>
         EmitObjects(schema.Domains, actions,

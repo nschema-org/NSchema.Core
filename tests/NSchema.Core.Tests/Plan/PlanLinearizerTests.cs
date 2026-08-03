@@ -182,6 +182,39 @@ public sealed class PlanLinearizerTests
     private IReadOnlyList<MigrationAction> LinearizeTable(TableDiff table) => Linearize(SchemaNode("app", tables: [table]));
 
     [Fact]
+    public void Linearize_OrdersRoutineCallsWithinThePlan()
+    {
+        // Arrange — film_in_stock calls inventory_in_stock; the callee is created first, whatever the
+        // alphabet says. The edge comes from the desired model's scanned DependsOn.
+        var caller = _sides.Creating("app", new Routine
+        {
+            Name = "film_in_stock",
+            RoutineKind = RoutineKind.Function,
+            Arguments = "p integer",
+            Definition = "RETURNS boolean LANGUAGE sql AS $$ SELECT inventory_in_stock(p) $$",
+            DependsOn = [new ObjectAddress("app", "inventory_in_stock")],
+        });
+        var callee = _sides.Creating("app", new Routine
+        {
+            Name = "inventory_in_stock",
+            RoutineKind = RoutineKind.Function,
+            Arguments = "p integer",
+            Definition = "RETURNS boolean LANGUAGE sql AS $$ SELECT true $$",
+        });
+
+        // Act
+        var plan = Linearize(SchemaNode("app", routines:
+        [
+            RoutineDiff.Added("app", caller),
+            RoutineDiff.Added("app", callee),
+        ]));
+
+        // Assert
+        var creates = plan.OfType<CreateRoutine>().Select(c => c.Routine.Name.Value).ToList();
+        creates.ShouldBe(["inventory_in_stock", "film_in_stock"]);
+    }
+
+    [Fact]
     public void Linearize_TriggerRemoveAndAddUnderOneName_FoldsIntoReplace()
     {
         // Arrange — a structural change diffs as remove + add under one name; the plan states the intent

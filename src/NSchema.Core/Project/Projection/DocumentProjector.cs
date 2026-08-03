@@ -52,7 +52,8 @@ internal static class DocumentProjector
             case Syn.Routines.CreateRoutineStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddRoutine(schema, new Routine { Name = name, RoutineKind = Map(s.Kind), Arguments = s.Arguments, Definition = s.Definition, Comment = s.Doc }, s.Name.Position);
+                    var dependsOn = RoutineDependencyExtractor.Extract(s.Definition, schema);
+                    schemas.AddRoutine(schema, new Routine { Name = name, RoutineKind = Map(s.Kind), Arguments = s.Arguments, Definition = s.Definition, DependsOn = dependsOn, Comment = s.Doc }, s.Name.Position);
                     break;
                 }
             case Syn.Enums.CreateEnumStatement s:
