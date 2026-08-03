@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Extensions now include their types.** A plan that drops an extension now blocks when data still depends on its types.
 - **Types are a category.** `TypeObject` is the common base of everything a type reference can resolve to: `EnumType`, `DomainType`, `CompositeType`, and now `NativeType`.
 
-## Changed
+### Changed
 
 - **`IsImplicit` and `ProvidedBy` live on every database element.** An implicit object, like a container-only schema, or a native type, is never created, dropped, managed, or imported, whatever its kind.
 
