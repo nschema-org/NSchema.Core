@@ -1,4 +1,5 @@
 using NSchema.Model;
+using NSchema.Model.Routines;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
@@ -38,6 +39,27 @@ public sealed class RoutineDependencyExtractorTests
         // Assert
         result.ShouldContain(new ObjectAddress("app", "count"));
         result.ShouldContain(new ObjectAddress("app", "orders"));
+    }
+
+    [Fact]
+    public void Extract_AggregateOptionValues_CollectTheFunctionsItIsAssembledFrom()
+    {
+        // Act — an aggregate has no body; SFUNC = _group_concat is not a call site, but it is the dependency.
+        var result = RoutineDependencyExtractor.Extract(
+            "(SFUNC = _group_concat, STYPE = text)", "app", RoutineKind.Aggregate);
+
+        // Assert
+        result.ShouldContain(new ObjectAddress("app", "_group_concat"));
+    }
+
+    [Fact]
+    public void Extract_FunctionDefinitions_DoNotCollectComparisonOperands()
+    {
+        // Act — '=' scanning is an aggregate rule; a body's WHERE clause must not sprout edges from it.
+        var result = Extract("AS $$ SELECT 1 FROM t WHERE status = archived $$");
+
+        // Assert
+        result.ShouldNotContain(new ObjectAddress("app", "archived"));
     }
 
     [Fact]

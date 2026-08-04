@@ -7,6 +7,7 @@ using NSchema.Diff.Domain.Schemas;
 using NSchema.Diff.Domain.Tables;
 using NSchema.Diff.Domain.Views;
 using NSchema.Model;
+using NSchema.Model.Routines;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
 using NSchema.Plan.Domain.Columns;
@@ -75,7 +76,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         var unfolded = capabilities.CanAlterForeignKeys ? UnsatisfiedOnCreate(created) : FrozenSet<MemberAddress>.Empty;
         foreach (var table in created)
         {
-            EmitTable(table, actions, unfolded);
+            EmitTable(table, dependencies, actions, unfolded);
         }
 
         var dropped = InRemovalOrder([.. tables.Where(table => table.Change == ChangeKind.Remove)], dependencies);
@@ -88,7 +89,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
         foreach (var table in dropped)
         {
-            EmitTable(table, actions, FrozenSet<MemberAddress>.Empty);
+            EmitTable(table, dependencies, actions, FrozenSet<MemberAddress>.Empty);
         }
     }
 
@@ -379,11 +380,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         {
             if (routine.Change is not (ChangeKind.Add or ChangeKind.Remove) && routine.RenamedFrom is { } renamedFrom)
             {
-                actions.Add(new RenameRoutine(new ObjectAddress(routine.Schema, renamedFrom), routine.Name, routine.RoutineKind));
+                actions.Add(new RenameRoutine(new ObjectAddress(routine.Schema, renamedFrom), routine.Name, routine.RoutineKind, routine.Arguments?.Old ?? routine.Signature));
             }
             if (routine.Change != ChangeKind.Remove && routine.Comment is { } comment)
             {
-                actions.Add(new SetRoutineComment(new ObjectAddress(routine.Schema, routine.Name), comment.Old, comment.New, routine.RoutineKind));
+                actions.Add(new SetRoutineComment(new ObjectAddress(routine.Schema, routine.Name), comment.Old, comment.New, routine.RoutineKind, routine.Signature ?? routine.Definition?.Arguments));
             }
         }
 
@@ -399,13 +400,16 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 // A signature (or kind) change recreates (a replace under different arguments would create a
                 // separate overload); a definition-only change replaces in place.
                 : routine.RequiresRecreate
-                    ? new RecreateRoutine(routine.Schema, definition)
+                    ? new RecreateRoutine(routine.Schema, definition, routine.Arguments?.Old ?? definition.Arguments)
                     : new ReplaceRoutine(routine.Schema, definition));
         }
 
-        foreach (var routine in InRemovalOrder([.. routines.Where(r => r.Change == ChangeKind.Remove)], dependencies))
+        // Aggregates are assembled from functions so must be dropped before them.
+        var dropped = routines.Where(r => r.Change == ChangeKind.Remove)
+            .OrderBy(r => r.RoutineKind == RoutineKind.Aggregate ? 0 : 1);
+        foreach (var routine in InRemovalOrder([.. dropped], dependencies))
         {
-            actions.Add(new DropRoutine(new ObjectAddress(routine.Schema, routine.Name), routine.RoutineKind));
+            actions.Add(new DropRoutine(new ObjectAddress(routine.Schema, routine.Name), routine.RoutineKind, routine.Signature));
         }
     }
 
@@ -527,11 +531,12 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     /// Emits one table's actions.
     /// </summary>
     /// <param name="table">The change to emit.</param>
+    /// <param name="dependencies">What the current database knows about the table.</param>
     /// <param name="actions">The action list being built.</param>
     /// <param name="unfolded">
     /// The foreign keys that cannot ride the CREATE TABLE, and are added separately afterwards instead.
     /// </param>
-    private static void EmitTable(TableDiff table, List<MigrationAction> actions, IReadOnlySet<MemberAddress> unfolded)
+    private static void EmitTable(TableDiff table, PlanDependencies dependencies, List<MigrationAction> actions, IReadOnlySet<MemberAddress> unfolded)
     {
         switch (table.Change)
         {
@@ -557,6 +562,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 break;
 
             case ChangeKind.Remove:
+                // A dropped table sheds its triggers explicitly first.
+                foreach (var trigger in dependencies.TriggersOn(new ObjectAddress(table.Schema, table.Name)))
+                {
+                    actions.Add(new DropTrigger(trigger));
+                }
                 actions.Add(new DropTable(new ObjectAddress(table.Schema, table.Name)));
                 break;
 
