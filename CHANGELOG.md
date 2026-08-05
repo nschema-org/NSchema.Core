@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [5.5.0] - 2026-08-05
+
+### Fixed
+
+- **Hand-authored definitions now converge on engines that re-render SQL.** For objects that store a provider-specific body (triggers, routines, views, etc.), the state now records both the project-side and database-side definitions for comparisons. Planning does its best to compare the different versions symmetrically, so the two being written differently doesn't show as drift.
+
 ## [5.4.0] - 2026-08-04
 
 ### Added
