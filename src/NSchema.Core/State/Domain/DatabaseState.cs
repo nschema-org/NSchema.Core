@@ -50,6 +50,19 @@ public sealed record DatabaseState(
     };
 
     /// <summary>
+    /// Replaces the snapshot with a fresh capture. A declared spelling is kept only while the engine
+    /// re-rendered its object identically — anything else drifted out of band, so the spelling is stale.
+    /// </summary>
+    /// <param name="captured">The freshly captured database structure.</param>
+    public DatabaseState Recapture(Database captured) => Declared.IsEmpty
+        ? this with { Database = captured }
+        : this with
+        {
+            Database = captured,
+            Declared = Declared.RestrictedTo(Database.Definitions().Intersect(captured.Definitions())),
+        };
+
+    /// <summary>
     /// Records the given executions into the ledger, replacing any earlier execution recorded for the same script.
     /// </summary>
     /// <param name="executions">The executions to record.</param>
