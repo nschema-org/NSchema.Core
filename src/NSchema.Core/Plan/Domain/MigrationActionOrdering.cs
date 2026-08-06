@@ -1,4 +1,6 @@
 using System.Collections.Frozen;
+using NSchema.Model;
+using NSchema.Model.Services;
 using NSchema.Plan.Domain.Columns;
 using NSchema.Plan.Domain.CompositeTypes;
 using NSchema.Plan.Domain.Constraints;
@@ -10,12 +12,10 @@ using NSchema.Plan.Domain.Routines;
 using NSchema.Plan.Domain.Schemas;
 using NSchema.Plan.Domain.Scripts;
 using NSchema.Plan.Domain.Sequences;
+using NSchema.Plan.Domain.Services;
 using NSchema.Plan.Domain.Tables;
 using NSchema.Plan.Domain.Triggers;
 using NSchema.Plan.Domain.Views;
-using NSchema.Model;
-using NSchema.Model.Services;
-using NSchema.Plan.Domain.Services;
 
 namespace NSchema.Plan.Domain;
 

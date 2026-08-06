@@ -10,11 +10,11 @@ using NSchema.Model.Columns;
 using NSchema.Model.Constraints;
 using NSchema.Model.Indexes;
 using NSchema.Model.Schemas;
+using NSchema.Model.Services;
 using NSchema.Model.Tables;
 using NSchema.Model.Views;
 using NSchema.Project.Domain.Directives;
 using DatabaseComparer = NSchema.Diff.Domain.Services.DatabaseComparer;
-using NSchema.Model.Services;
 
 namespace NSchema.Tests.Diff;
 

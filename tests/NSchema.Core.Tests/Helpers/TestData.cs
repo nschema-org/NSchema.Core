@@ -12,6 +12,7 @@ using NSchema.Model.Indexes;
 using NSchema.Model.Routines;
 using NSchema.Model.Schemas;
 using NSchema.Model.Sequences;
+using NSchema.Model.Services;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
 using NSchema.Model.Views;
@@ -19,7 +20,6 @@ using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Schemas;
 using NSchema.Plan.Domain.Tables;
 using NSchema.Project.Domain.Directives;
-using NSchema.Model.Services;
 
 namespace NSchema.Tests.Helpers;
 
