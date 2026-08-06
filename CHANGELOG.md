@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- **Models answer their own dependencies.** `View.Reads(schema)`, `Routine.References(schema)`, `Column.References(schema)`, and `CheckConstraint.References(schema)` scan their bodies and expressions on demand — the dependency graph, the CLI's schema report, and any consumer read the same truth off the model, with the scanners as internal backing services. The stored `DependsOn` lists are obsolete and no longer populated.
+- **Models answer their own dependencies.** `View.Reads(schema)`, `Routine.References(schema)`, `Column.References(schema)`, `CheckConstraint.References(schema)`, and `Trigger.References(schema)` (its function reference plus its scanned body and `WHEN` predicate).
 
 ### Changed
 

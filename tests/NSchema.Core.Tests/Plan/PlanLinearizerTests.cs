@@ -245,6 +245,36 @@ public sealed class PlanLinearizerTests
     }
 
     [Fact]
+    public void Linearize_TriggerExecutingAFunction_CreatesTheFunctionFirst()
+    {
+        // Arrange — the trigger names its function outright; the edge rides the trigger's own action.
+        var table = _sides.Creating("app", new Table
+        {
+            Name = "users",
+            Columns = [new Column { Name = "id", Type = SqlType.Int }],
+            Triggers = [new Trigger { Name = "users_touch", Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Function = new RoutineReference("app", "touch") }],
+        });
+        var routine = _sides.Creating("app", new Routine
+        {
+            Name = "touch",
+            RoutineKind = RoutineKind.Function,
+            Arguments = "",
+            // The function reads the table its trigger guards: a false cycle if the trigger's references
+            // were folded into the table's create instead of riding the trigger action.
+            Definition = "RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN UPDATE app.users SET id = id; RETURN NEW; END $$",
+        });
+
+        // Act — an added table's triggers arrive as their own diff nodes (the comparer's doing).
+        var plan = Linearize(SchemaNode("app",
+            tables: [TableDiff.Added("app", table) with { Triggers = [TriggerDiff.Added(table.Triggers[0])] }],
+            routines: [RoutineDiff.Added("app", routine)]));
+
+        // Assert — table, then the function that reads it, then the trigger that calls the function.
+        IndexOf<CreateTable>(plan).ShouldBeLessThan(IndexOf<CreateRoutine>(plan));
+        IndexOf<CreateRoutine>(plan).ShouldBeLessThan(IndexOf<CreateTrigger>(plan));
+    }
+
+    [Fact]
     public void Linearize_DomainOnACompositeType_CreatesTheCompositeFirst()
     {
         // Arrange — the domain's band precedes the composite's, so only a real edge can order this pair

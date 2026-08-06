@@ -86,6 +86,7 @@ internal static class MigrationActionOrdering
         // precedes its object's drop, and a change script stays after its anchor's create and before its drop.
         // These edges are structural facts, so they carry a stated strength.
         const int structural = 1;
+        const int inferred = 0;
         for (var i = 0; i < actions.Count; i++)
         {
             switch (actions[i])
@@ -98,6 +99,25 @@ internal static class MigrationActionOrdering
                 case AddForeignKey foreignKey:
                     AfterCreate(i, foreignKey.Table);
                     AfterCreate(i, foreignKey.ForeignKey.References);
+                    break;
+
+                // A trigger's references ride its own action, not its table's create: the trigger runs later,
+                // so folding them into the table would manufacture cycles that do not exist. Scanned guesses,
+                // so they carry inferred strength and give way first in a genuine cycle.
+                case CreateTrigger trigger:
+                    AfterCreate(i, trigger.Table);
+                    foreach (var reference in trigger.Trigger.References(trigger.Table.Schema))
+                    {
+                        AfterCreate(i, reference, inferred);
+                    }
+                    break;
+
+                case ReplaceTrigger trigger:
+                    AfterCreate(i, trigger.Table);
+                    foreach (var reference in trigger.Trigger.References(trigger.Table.Schema))
+                    {
+                        AfterCreate(i, reference, inferred);
+                    }
                     break;
 
                 default:
@@ -115,11 +135,11 @@ internal static class MigrationActionOrdering
 
         return actions.OrderedByDependencies(a => PriorityOf(a), edges);
 
-        void AfterCreate(int index, ObjectAddress subject)
+        void AfterCreate(int index, ObjectAddress subject, int strength = structural)
         {
             if (creates.TryGetValue(subject, out var create) && create != index)
             {
-                edges.Add(new DependencyEdge(index, create, structural));
+                edges.Add(new DependencyEdge(index, create, strength));
             }
         }
 
@@ -142,8 +162,6 @@ internal static class MigrationActionOrdering
         AddCheckConstraint x => x.Table,
         AddExclusionConstraint x => x.Table,
         CreateIndex x => x.Table,
-        CreateTrigger x => x.Table,
-        ReplaceTrigger x => x.Table,
         SetTableComment x => x.Table,
         GrantTablePrivileges x => x.Table,
         SetColumnDefault x => x.Column.Owner,
