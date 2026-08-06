@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Columns;
-using NSchema.Model.Constraints;
 using NSchema.Model.CompositeTypes;
+using NSchema.Model.Constraints;
 using NSchema.Model.Domains;
 using NSchema.Model.Enums;
 using NSchema.Model.Schemas;
