@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - **Models answer their own dependencies.** `View.Reads(schema)`, `Routine.References(schema)`, `Column.References(schema)`, `CheckConstraint.References(schema)`, and `Trigger.References(schema)` (its function reference plus its scanned body and `WHEN` predicate).
+- **`SqlScanner`: one lexical layer for engine SQL.** A public, tolerant scanner over the amorphous "SQL grammar" — nestable block comments, `'…'` strings, `"…"` and `[…]` identifiers with doubling escapes, etc.
 
 ### Changed
 
