@@ -1,7 +1,7 @@
 namespace NSchema.Model.Services;
 
 /// <summary>
-/// The kinds of token a <see cref="SqlScanner"/> produces.
+/// The kinds of token a <see cref="SqlLexer"/> produces.
 /// </summary>
 public enum SqlTokenKind
 {

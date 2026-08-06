@@ -6,11 +6,11 @@ namespace NSchema.Tests.Project.Model;
 /// The shared lexical layer under every opaque-SQL helper: tolerant, permissive-union alphabet, never
 /// throws. These pin the alphabet decisions each consumer used to make privately.
 /// </summary>
-public sealed class SqlScannerTests
+public sealed class SqlLexerTests
 {
     private static List<SqlToken> Tokens(string sql)
     {
-        var scanner = new SqlScanner(sql);
+        var scanner = new SqlLexer(sql);
         var tokens = new List<SqlToken>();
         while (scanner.Next() is { Kind: not SqlTokenKind.End } token)
         {
@@ -73,24 +73,24 @@ public sealed class SqlScannerTests
     public void SkipLeadingTrivia_StepsOverCommentsAndWhitespace()
     {
         var sql = "  -- banner\n/* block /* nested */ */  CREATE";
-        sql[SqlScanner.SkipLeadingTrivia(sql)..].ShouldBe("CREATE");
+        sql[SqlLexer.SkipLeadingTrivia(sql)..].ShouldBe("CREATE");
     }
 
     [Fact]
     public void EndsInLineComment_OnlyForARealTrailingComment()
     {
-        SqlScanner.EndsInLineComment("x -- trailing").ShouldBeTrue();
-        SqlScanner.EndsInLineComment("x -- inner\ny").ShouldBeFalse();
-        SqlScanner.EndsInLineComment("x = '--not a comment'").ShouldBeFalse();
-        SqlScanner.EndsInLineComment("x /* -- inside block */").ShouldBeFalse();
+        SqlLexer.EndsInLineComment("x -- trailing").ShouldBeTrue();
+        SqlLexer.EndsInLineComment("x -- inner\ny").ShouldBeFalse();
+        SqlLexer.EndsInLineComment("x = '--not a comment'").ShouldBeFalse();
+        SqlLexer.EndsInLineComment("x /* -- inside block */").ShouldBeFalse();
     }
 
     [Fact]
     public void HasTopLevelSemicolon_IgnoresNestedAndQuotedOnes()
     {
-        SqlScanner.HasTopLevelSemicolon("BEGIN RETURN 1; END").ShouldBeTrue();
-        SqlScanner.HasTopLevelSemicolon("f(a; b)").ShouldBeFalse();
-        SqlScanner.HasTopLevelSemicolon("'a;b'").ShouldBeFalse();
-        SqlScanner.HasTopLevelSemicolon("$$ a; b $$").ShouldBeFalse();
+        SqlLexer.HasTopLevelSemicolon("BEGIN RETURN 1; END").ShouldBeTrue();
+        SqlLexer.HasTopLevelSemicolon("f(a; b)").ShouldBeFalse();
+        SqlLexer.HasTopLevelSemicolon("'a;b'").ShouldBeFalse();
+        SqlLexer.HasTopLevelSemicolon("$$ a; b $$").ShouldBeFalse();
     }
 }

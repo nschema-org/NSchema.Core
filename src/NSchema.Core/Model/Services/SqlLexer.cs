@@ -8,7 +8,7 @@ namespace NSchema.Model.Services;
 /// <c>'…'</c> strings, <c>"…"</c> and <c>[…]</c> identifiers (each with doubling escapes), and
 /// <c>$tag$ … $tag$</c> dollar quotes.
 /// </remarks>
-public sealed class SqlScanner(string text)
+public sealed class SqlLexer(string text)
 {
     private int _offset;
     private bool _endedInLineComment;
@@ -73,7 +73,7 @@ public sealed class SqlScanner(string text)
     /// </summary>
     public static int SkipLeadingTrivia(string sql)
     {
-        var scanner = new SqlScanner(sql);
+        var scanner = new SqlLexer(sql);
         scanner.SkipTrivia();
         return scanner._offset;
     }
@@ -84,7 +84,7 @@ public sealed class SqlScanner(string text)
     /// </summary>
     public static bool EndsInLineComment(string sql)
     {
-        var scanner = new SqlScanner(sql);
+        var scanner = new SqlLexer(sql);
         while (scanner.Next().Kind != SqlTokenKind.End)
         {
         }
@@ -96,7 +96,7 @@ public sealed class SqlScanner(string text)
     /// </summary>
     public static bool HasTopLevelSemicolon(string sql)
     {
-        var scanner = new SqlScanner(sql);
+        var scanner = new SqlLexer(sql);
         var depth = 0;
         while (true)
         {

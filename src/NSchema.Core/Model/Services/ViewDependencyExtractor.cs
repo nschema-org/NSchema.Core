@@ -38,7 +38,7 @@ internal static class ViewDependencyExtractor
     /// <summary>All significant tokens, via the shared lexical layer.</summary>
     private static List<SqlToken> Tokenize(string body)
     {
-        var scanner = new SqlScanner(body);
+        var scanner = new SqlLexer(body);
         var tokens = new List<SqlToken>();
         while (scanner.Next() is { Kind: not SqlTokenKind.End } token)
         {

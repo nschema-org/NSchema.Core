@@ -1,7 +1,7 @@
 namespace NSchema.Model.Services;
 
 /// <summary>
-/// One token from a <see cref="SqlScanner"/>.
+/// One token from a <see cref="SqlLexer"/>.
 /// </summary>
 /// <param name="Kind">What it is.</param>
 /// <param name="Value">A word's text, a quoted identifier's inner text (doubling undone), a dollar-quoted

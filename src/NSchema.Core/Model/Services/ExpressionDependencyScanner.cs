@@ -20,7 +20,7 @@ internal static class ExpressionDependencyScanner
         var seen = new HashSet<ObjectAddress>();
 
         // A three-token lookbehind is enough to see `name (` and `schema . name (`.
-        var scanner = new SqlScanner(expression);
+        var scanner = new SqlLexer(expression);
         var previous = new SqlToken[3];
         while (scanner.Next() is { Kind: not SqlTokenKind.End } token)
         {

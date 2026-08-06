@@ -354,7 +354,7 @@ internal static class SyntaxBuilder
     /// ends the statement early, and a line comment on the final line swallows the terminator), verbatim otherwise.
     /// </summary>
     private static Token OpaqueSpan(SqlText body) =>
-        SqlScanner.HasTopLevelSemicolon(body.Value) || SqlScanner.EndsInLineComment(body.Value)
+        SqlLexer.HasTopLevelSemicolon(body.Value) || SqlLexer.EndsInLineComment(body.Value)
             ? DollarString(body)
             : Token.Span(body.Value.TrimEnd());
 
@@ -363,7 +363,7 @@ internal static class SyntaxBuilder
     /// list gains a trailing newline (the parenthesised capture trims it back out).
     /// </summary>
     private static Token ArgumentsSpan(SqlText arguments) =>
-        SqlScanner.EndsInLineComment(arguments.Value) ? Token.Span($"{arguments.Value}\n") : Token.Span(arguments.Value);
+        SqlLexer.EndsInLineComment(arguments.Value) ? Token.Span($"{arguments.Value}\n") : Token.Span(arguments.Value);
 
     private static Identifier Name(SqlIdentifier name) => Identifier.Synthetic(name.Value);
 
