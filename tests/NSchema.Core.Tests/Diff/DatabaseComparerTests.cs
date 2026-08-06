@@ -13,8 +13,8 @@ using NSchema.Model.Schemas;
 using NSchema.Model.Tables;
 using NSchema.Model.Views;
 using NSchema.Project.Domain.Directives;
-using NSchema.Project.Nsql;
 using DatabaseComparer = NSchema.Diff.Domain.Services.DatabaseComparer;
+using NSchema.Model.Services;
 
 namespace NSchema.Tests.Diff;
 
@@ -64,7 +64,7 @@ public partial class DatabaseComparerTests
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null) =>
-        new View { Name = name, Body = body, DependsOn = ViewDependencyExtractor.Extract(body, "app"), Comment = comment };
+        new View { Name = name, Body = body, Comment = comment };
 
     [Fact]
     public void Compare_BothEmpty_ProducesEmptyDiff()

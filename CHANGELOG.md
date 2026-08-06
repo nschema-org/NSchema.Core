@@ -8,9 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Models answer their own dependencies.** `View.Reads(schema)`, `Routine.References(schema)`, `Column.References(schema)`, and `CheckConstraint.References(schema)` scan their bodies and expressions on demand — the dependency graph, the CLI's schema report, and any consumer read the same truth off the model, with the scanners as internal backing services. The stored `DependsOn` lists are obsolete and no longer populated.
+
 ### Changed
 
-- **Table and routine creates (and drops) order by their real dependencies.** The two kinds now share one ordering band, and the plan orders each pair by the direction the dependency points.
+- **The whole migration is linearized from the dependency graph.** Action ordering is a priority-respecting topological sort: every create runs after what it requires and every drop before what requires it — for tables, routines, views, domains, enums, sequences, and composite types alike — with the former fixed type order surviving as the tiebreak, so a plan without cross-object dependencies orders exactly as before. The graph scans routine definitions, view bodies, and table expressions (computed columns, defaults, checks) for itself, in bare, bracketed, or quoted spelling, on both sides of the migration — so imported T-SQL orders correctly and teardown mirrors creation. This fixes what a fixed type order cannot express: a computed column calling a routine, a routine reading a view, a domain built on a composite type, and their drop-side mirrors. Containment is explicit — an action on an object follows its create, a member's removal precedes its object's drop — and a change script is anchored to its subject, running after the table it seeds is created and before the table it reads is dropped. Cycles are cut deterministically at their weakest edge (an inferred reference gives way before a stated fact).
 
 ### Fixed
 
