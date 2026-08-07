@@ -57,6 +57,6 @@ internal sealed class DatabaseStateSerializer : IDatabaseStateSerializer
                 "incompatible version of NSchema. Re-capture the live schema with a forced refresh to replace it.");
         }
 
-        return new DatabaseState(envelope.Database, envelope.Scripts, envelope.Managed, envelope.Declared);
+        return new DatabaseState(envelope.Database, envelope.Scripts ?? [], envelope.Managed, envelope.Declared);
     }
 }
