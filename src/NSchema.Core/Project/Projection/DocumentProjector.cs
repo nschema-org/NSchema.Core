@@ -41,7 +41,7 @@ internal static class DocumentProjector
             case Syn.Views.CreateViewStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddView(schema, new View { Name = name, Body = s.Body, IsMaterialized = s.IsMaterialized, Comment = s.Doc }, s.Name.Position);
+                    schemas.AddView(schema, new View { Name = name, Body = s.Body, IsMaterialized = s.IsMaterialized, IsSchemaBound = s.IsSchemaBound, Comment = s.Doc }, s.Name.Position);
                     break;
                 }
             case Syn.Indexes.CreateIndexStatement s:

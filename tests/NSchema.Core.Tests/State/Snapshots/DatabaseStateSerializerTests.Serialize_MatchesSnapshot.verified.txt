@@ -272,18 +272,21 @@ END,
           {
             body: SELECT id, name FROM app.users WHERE balance > 0,
             isMaterialized: false,
+            isSchemaBound: false,
             name: active_users,
             comment: currently active users
           },
           {
             body: SELECT name FROM app.active_users,
             isMaterialized: false,
+            isSchemaBound: false,
             name: user_directory,
             comment: null
           },
           {
             body: SELECT name, balance FROM app.users,
             isMaterialized: true,
+            isSchemaBound: false,
             indexes: [
               {
                 columns: [

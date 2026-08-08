@@ -30,6 +30,39 @@ public sealed class NsqlParserMaterializedViewTests
         => ParseView("CREATE VIEW app.v AS SELECT 1;").IsMaterialized.ShouldBeFalse();
 
     [Fact]
+    public void Parse_PlainView_IsNotSchemaBound()
+        => ParseView("CREATE VIEW app.v AS SELECT 1;").IsSchemaBound.ShouldBeFalse();
+
+    [Fact]
+    public void Parse_SchemaBoundView_SetsFlag()
+    {
+        // Act
+        var view = ParseView("CREATE VIEW app.v WITH SCHEMABINDING AS SELECT 1;");
+
+        // Assert
+        view.IsSchemaBound.ShouldBeTrue();
+        view.IsMaterialized.ShouldBeFalse();
+        view.Body.ShouldBe("SELECT 1");
+    }
+
+    [Fact]
+    public void Parse_SchemaBoundMaterializedView_SetsBothFlags()
+    {
+        // Act
+        var view = ParseView("CREATE MATERIALIZED VIEW app.v WITH SCHEMABINDING AS SELECT 1;");
+
+        // Assert
+        view.IsSchemaBound.ShouldBeTrue();
+        view.IsMaterialized.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Parse_IndexOnSchemaBoundView_Attaches()
+        // SQL Server's indexed view: schema-bound, plain, and carrying a unique clustered index.
+        => ParseView("CREATE VIEW app.v WITH SCHEMABINDING AS SELECT id FROM app.t; CREATE UNIQUE INDEX v_ix ON app.v (id);")
+            .Indexes.ShouldHaveSingleItem().Name.ShouldBe("v_ix");
+
+    [Fact]
     public void Parse_StandaloneIndexOnMaterializedView_Attaches()
     {
         // Arrange

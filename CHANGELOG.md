@@ -8,9 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Views declare their schema binding.** `View.IsSchemaBound` records whether a view is bound to the schema of what it reads, written in NSQL as `CREATE VIEW name WITH SCHEMABINDING AS …`, the spelling SQL Server uses.
+
 ### Changed
 
 - **A view may carry indexes whether or not it is materialized.** `CREATE INDEX … ON schema.view` no longer requires the view to be materialized.
+- **`CreateIndex` says whether its owner is a view.** The new `OnView` flag rides the action, as `IsMaterialized` does on the view actions.
 
 ## [5.6.1] - 2026-08-07
 

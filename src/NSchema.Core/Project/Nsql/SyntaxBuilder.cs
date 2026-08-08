@@ -258,14 +258,14 @@ internal static class SyntaxBuilder
 
     private static void AddView(List<NsqlStatement> statements, SqlIdentifier schemaName, View view)
     {
-        statements.Add(new Syn.Views.CreateViewStatement(Qualified(schemaName, view.Name), view.Body, view.IsMaterialized)
+        statements.Add(new Syn.Views.CreateViewStatement(Qualified(schemaName, view.Name), view.Body, view.IsMaterialized, view.IsSchemaBound)
         {
             Doc = view.Comment,
             DocComment = DocToken(view.Comment),
             BodyToken = OpaqueSpan(view.Body),
         });
 
-        // A materialized view's indexes are standalone statements emitted after it (a plain view has none).
+        // A view's indexes are standalone statements emitted after it.
         foreach (var index in view.Indexes)
         {
             statements.Add(new Syn.Indexes.CreateIndexStatement(Name(index.Name), index.IsUnique, Qualified(schemaName, view.Name),

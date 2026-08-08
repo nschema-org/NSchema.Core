@@ -76,6 +76,7 @@ internal static class NsqlKeywords
     public const string Row = "ROW";
     public const string Run = "RUN";
     public const string Schema = "SCHEMA";
+    public const string SchemaBinding = "SCHEMABINDING";
     public const string Script = "SCRIPT";
     public const string Select = "SELECT";
     public const string Sequence = "SEQUENCE";

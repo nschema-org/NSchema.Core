@@ -291,7 +291,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 // renamed view they run while it still carries its old name.
                 foreach (var index in view.Indexes)
                 {
-                    actions.Add(IndexAction(view.Schema, view.Name, view.RenamedFrom ?? view.Name, index));
+                    actions.Add(IndexAction(view.Schema, view.Name, view.RenamedFrom ?? view.Name, index, onView: true));
                 }
             }
         }
@@ -814,9 +814,13 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     /// The action for one index change on <paramref name="owner"/>. Drops target <paramref name="preRenameName"/>,
     /// since they sort before the owner's rename and so run while it still carries its old name.
     /// </summary>
-    private static MigrationAction IndexAction(SqlIdentifier schema, SqlIdentifier owner, SqlIdentifier preRenameName, IndexDiff index) => index switch
+    /// <remarks>
+    /// <paramref name="onView"/> says whether the owner is a view. The address stays kind-less so the ordering
+    /// layer's subject lookup still matches the owner's create; the nature travels on the action instead.
+    /// </remarks>
+    private static MigrationAction IndexAction(SqlIdentifier schema, SqlIdentifier owner, SqlIdentifier preRenameName, IndexDiff index, bool onView = false) => index switch
     {
-        { Change: ChangeKind.Add, Definition: { } definition } => new CreateIndex(new ObjectAddress(schema, owner), definition),
+        { Change: ChangeKind.Add, Definition: { } definition } => new CreateIndex(new ObjectAddress(schema, owner), definition, onView),
         { Change: ChangeKind.Remove } => new DropIndex(new MemberAddress(schema, preRenameName, index.Name)),
         { Comment: { } comment } => new SetIndexComment(new MemberAddress(schema, owner, index.Name), comment.Old, comment.New),
         _ => throw new NotSupportedException($"Cannot linearize index change {index.Change} on '{schema}.{owner}'."),

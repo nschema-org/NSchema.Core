@@ -183,10 +183,15 @@ internal static class DiffRenderer
 
     private static void RenderView(List<DiffLine> lines, ViewDiff view)
     {
-        // A plain ⇄ materialized conversion renders as a label transition, mirroring the rename arrow.
-        var label = view.Materialized is { } materialized
-            ? $"{ViewLabel(materialized.Old)} → {ViewLabel(materialized.New)}"
-            : ViewLabel(view.IsMaterialized);
+        // A plain ⇄ materialized conversion, or a binding ⇄ unbinding, renders as a label transition, mirroring
+        // the rename arrow. Both say what the view *is*, so they share the one label.
+        var label = (view.Materialized, view.SchemaBound) switch
+        {
+            ({ } m, { } b) => $"{ViewLabel(m.Old, b.Old)} → {ViewLabel(m.New, b.New)}",
+            ({ } m, null) => $"{ViewLabel(m.Old, view.IsSchemaBound)} → {ViewLabel(m.New, view.IsSchemaBound)}",
+            (null, { } b) => $"{ViewLabel(view.IsMaterialized, b.Old)} → {ViewLabel(view.IsMaterialized, b.New)}",
+            _ => ViewLabel(view.IsMaterialized, view.IsSchemaBound),
+        };
         var name = QualifiedName(view);
 
         // A comment-only modify (no body or index change) reports the comment transition rather than a bare header.
@@ -198,14 +203,15 @@ internal static class DiffRenderer
 
         AppendHeader(lines, view.Change, $"{label} {name}{CommentSuffix(view.Comment)}");
 
-        // In-place index changes on a materialized view.
+        // In-place index changes on the view.
         foreach (var index in view.Indexes)
         {
             AppendDetail(lines, index.Change, MemberText("index", index.Name, index.Change, index.Comment));
         }
     }
 
-    private static string ViewLabel(bool isMaterialized) => isMaterialized ? "materialized view" : "view";
+    private static string ViewLabel(bool isMaterialized, bool isSchemaBound) =>
+        (isSchemaBound ? "schema-bound " : "") + (isMaterialized ? "materialized view" : "view");
 
     private static void RenderEnum(List<DiffLine> lines, EnumDiff enumDiff)
     {

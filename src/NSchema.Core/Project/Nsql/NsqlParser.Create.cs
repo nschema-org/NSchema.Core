@@ -153,23 +153,36 @@ internal sealed partial class NsqlParser
     }
 
     // The "VIEW" keyword has already been consumed by the dispatcher (preceded by "MATERIALIZED" when the view
-    // is materialized); both are threaded in so the statement reprints exactly.
+    // is materialized); both are threaded in so the statement reprints exactly. The attribute clause that may
+    // follow the name is this statement's own to parse.
     private CreateViewStatement ParseCreateView(Token create, Token? materializedKeyword, Token view, Token? doc)
     {
         var name = ParseQualifiedNameNode();
+
+        // WITH SCHEMABINDING, spelled as SQL Server spells it — the only engine that makes the binding a choice.
+        Token? withKeyword = null;
+        Token? schemaBindingKeyword = null;
+        if (_current.IsKeyword(NsqlKeywords.With))
+        {
+            withKeyword = Advance();
+            schemaBindingKeyword = ExpectKeyword(NsqlKeywords.SchemaBinding);
+        }
+
         var asKeyword = ExpectKeyword(NsqlKeywords.As);
 
         // The body is captured verbatim; projection derives the view's dependencies from it.
         var (body, bodyToken) = CaptureOpaqueBody("a view body");
         var semicolon = Expect(TokenKind.Semicolon, "';' to end the view definition");
 
-        return new CreateViewStatement(name, body, materializedKeyword is not null)
+        return new CreateViewStatement(name, body, materializedKeyword is not null, withKeyword is not null)
         {
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
             MaterializedKeyword = materializedKeyword,
             ViewKeyword = view,
+            WithKeyword = withKeyword,
+            SchemaBindingKeyword = schemaBindingKeyword,
             AsKeyword = asKeyword,
             BodyToken = bodyToken,
             SemicolonToken = semicolon,
