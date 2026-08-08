@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [Unreleased]
+
+### Changed
+
+- **A view may carry indexes whether or not it is materialized.** `CREATE INDEX … ON schema.view` no longer requires the view to be materialized.
+
 ## [5.6.1] - 2026-08-07
 
 ### Added

@@ -238,7 +238,7 @@ internal sealed class DatabaseAccumulator
                 continue;
             }
 
-            // A standalone index attaches to a table (the same as an inline index) or a materialized view.
+            // A standalone index attaches to a table (the same as an inline index) or a view.
             if (entry.Tables.FirstOrDefault(t => t.Name == pending.Relation) is { } table)
             {
                 if (table.Indexes.Any(i => i.Name == pending.Index.Name))
@@ -257,12 +257,6 @@ internal sealed class DatabaseAccumulator
                 Report(ProjectDiagnostics.UnknownIndexRelation(pending.Schema, pending.Relation, pending.Position), pending.File);
                 continue;
             }
-            if (!view.IsMaterialized)
-            {
-                Report(ProjectDiagnostics.IndexOnPlainView(pending.Schema, pending.Relation, pending.Position), pending.File);
-                continue;
-            }
-
             if (view.Indexes.Any(i => i.Name == pending.Index.Name))
             {
                 Report(ProjectDiagnostics.IndexAlreadyDeclared(pending.Index.Name, pending.Schema, pending.Relation, pending.Position), pending.File);
