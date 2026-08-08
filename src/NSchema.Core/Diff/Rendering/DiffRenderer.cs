@@ -9,6 +9,7 @@ using NSchema.Diff.Domain.Schemas;
 using NSchema.Diff.Domain.Sequences;
 using NSchema.Diff.Domain.Tables;
 using NSchema.Diff.Domain.Views;
+using NSchema.Diff.Domain.XmlSchemaCollections;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Routines;
@@ -67,6 +68,11 @@ internal static class DiffRenderer
             foreach (var compositeType in schema.CompositeTypes)
             {
                 RenderCompositeType(lines, compositeType);
+            }
+
+            foreach (var collection in schema.XmlSchemaCollections)
+            {
+                RenderXmlSchemaCollection(lines, collection);
             }
 
             foreach (var sequence in schema.Sequences)
@@ -179,6 +185,14 @@ internal static class DiffRenderer
                 : $"revoke {privileges} from {grant.Role}";
             AppendDetail(lines, grant.Change, text);
         }
+    }
+
+    private static void RenderXmlSchemaCollection(List<DiffLine> lines, XmlSchemaCollectionDiff collection)
+    {
+        // A body change is a rebuild, so it reads as a recreate rather than an alteration.
+        var name = QualifiedName(collection);
+        var label = collection.RequiresRecreate ? "xml schema collection (recreated)" : "xml schema collection";
+        AppendHeader(lines, collection.Change, $"{label} {name}{CommentSuffix(collection.Comment)}");
     }
 
     private static void RenderView(List<DiffLine> lines, ViewDiff view)

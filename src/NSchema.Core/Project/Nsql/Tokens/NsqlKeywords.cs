@@ -21,8 +21,10 @@ internal static class NsqlKeywords
     public const string Cascade = "CASCADE";
     public const string Check = "CHECK";
     public const string Column = "COLUMN";
+    public const string Collection = "COLLECTION";
     public const string Constraint = "CONSTRAINT";
     public const string Create = "CREATE";
+    public const string Content = "CONTENT";
     public const string Cycle = "CYCLE";
     public const string Database = "DATABASE";
     public const string Default = "DEFAULT";
@@ -30,6 +32,7 @@ internal static class NsqlKeywords
     public const string Deployment = "DEPLOYMENT";
     public const string Desc = "DESC";
     public const string Domain = "DOMAIN";
+    public const string Document = "DOCUMENT";
     public const string Each = "EACH";
     public const string End = "END";
     public const string Engine = "ENGINE";

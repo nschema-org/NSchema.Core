@@ -25,6 +25,7 @@ using NSchema.Plan.Domain.Sequences;
 using NSchema.Plan.Domain.Tables;
 using NSchema.Plan.Domain.Triggers;
 using NSchema.Plan.Domain.Views;
+using NSchema.Plan.Domain.XmlSchemaCollections;
 
 namespace NSchema.Plan.Domain.Services;
 
@@ -47,6 +48,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // graph directly, so emission is just diff-to-action mapping. Emission order still seeds the sort's
         // tiebreak, which is why table drops trail the routine drops: absent an edge, a routine drops before
         // the tables it may reference, mirroring creation.
+        EmitXmlSchemaCollections(diff, actions);
         EmitTables(diff, dependencies, capabilities, actions);
         EmitRoutines(diff, actions);
         EmitViews(diff, actions);
@@ -56,6 +58,30 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         // Deployment scripts bookend the plan: pre scripts run before everything, post scripts after.
         return [.. ScriptActions(diff, DeploymentPhase.Pre), .. actions, .. ScriptActions(diff, DeploymentPhase.Post)];
+    }
+
+    /// <summary>
+    /// Emits the XML schema collection actions. A change to what a collection holds is a rebuild — an engine can
+    /// add namespaces to one but never take them away — so it drops and creates rather than altering.
+    /// </summary>
+    private static void EmitXmlSchemaCollections(DatabaseDiff diff, List<MigrationAction> actions)
+    {
+        foreach (var schema in diff.Schemas)
+        {
+            foreach (var collection in schema.XmlSchemaCollections)
+            {
+                if (collection.Change == ChangeKind.Remove || collection.RequiresRecreate)
+                {
+                    actions.Add(new DropXmlSchemaCollection(
+                        new ObjectAddress(collection.Schema, collection.RenamedFrom ?? collection.Name, SchemaObjectKind.XmlSchemaCollection)));
+                }
+
+                if (collection is { Change: not ChangeKind.Remove, Definition: { } definition })
+                {
+                    actions.Add(new CreateXmlSchemaCollection(collection.Schema, definition));
+                }
+            }
+        }
     }
 
     private static IEnumerable<ExecuteScript> ScriptActions(DatabaseDiff diff, DeploymentPhase phase) =>

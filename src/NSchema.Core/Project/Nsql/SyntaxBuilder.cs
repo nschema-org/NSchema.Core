@@ -163,6 +163,18 @@ internal static class SyntaxBuilder
             });
         }
 
+        // Collections precede the tables whose columns are typed by them, so a read encounters each in order.
+        foreach (var collection in schema.XmlSchemaCollections)
+        {
+            statements.Add(new Syn.XmlSchemaCollections.CreateXmlSchemaCollectionStatement(
+                Qualified(schema.Name, collection.Name), collection.Body)
+            {
+                Doc = collection.Comment,
+                DocComment = DocToken(collection.Comment),
+                BodyToken = OpaqueSpan(collection.Body),
+            });
+        }
+
         foreach (var table in schema.Tables)
         {
             AddTable(statements, schema.Name, table);
@@ -388,6 +400,14 @@ internal static class SyntaxBuilder
         // The type carries its qualifier and arguments as components, so read them straight across — no
         // rendering to a string and splitting it back apart.
         var schema = type.Schema is { } qualifier ? Identifier.Synthetic(qualifier.Value) : null;
+
+        // A typed xml's argument names an object, not a number, so it is written as a qualified name.
+        if (type.Xml is { } xml)
+        {
+            return new TypeName(schema, Identifier.Synthetic(type.Name.Value), null,
+                Qualified(xml.Collection.Schema, xml.Collection.Name), xml.IsDocument);
+        }
+
         var arguments = Arguments(type);
         return new TypeName(schema, Identifier.Synthetic(type.Name.Value), arguments);
     }

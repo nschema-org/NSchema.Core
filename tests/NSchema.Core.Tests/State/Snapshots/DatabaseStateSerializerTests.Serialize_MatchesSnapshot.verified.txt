@@ -19,7 +19,8 @@
                   schema: null,
                   length: null,
                   precision: null,
-                  scale: null
+                  scale: null,
+                  xml: null
                 },
                 isNullable: false,
                 isIdentity: true,
@@ -39,7 +40,8 @@
                   schema: null,
                   length: 255,
                   precision: null,
-                  scale: null
+                  scale: null,
+                  xml: null
                 },
                 isNullable: false,
                 isIdentity: false,
@@ -55,7 +57,8 @@
                   schema: null,
                   length: null,
                   precision: 18,
-                  scale: 2
+                  scale: 2,
+                  xml: null
                 },
                 isNullable: true,
                 isIdentity: false,
@@ -71,7 +74,8 @@
                   schema: null,
                   length: 8,
                   precision: null,
-                  scale: null
+                  scale: null,
+                  xml: null
                 },
                 isNullable: false,
                 isIdentity: false,
@@ -87,7 +91,8 @@
                   schema: null,
                   length: null,
                   precision: null,
-                  scale: null
+                  scale: null,
+                  xml: null
                 },
                 isNullable: true,
                 isIdentity: false,
@@ -103,7 +108,8 @@
                   schema: null,
                   length: null,
                   precision: null,
-                  scale: null
+                  scale: null,
+                  xml: null
                 },
                 isNullable: true,
                 isIdentity: false,
@@ -351,7 +357,8 @@ END,
                 schema: null,
                 length: null,
                 precision: null,
-                scale: null
+                scale: null,
+                xml: null
               },
               startWith: 100,
               incrementBy: 5,
@@ -400,7 +407,8 @@ $$,
               schema: null,
               length: null,
               precision: null,
-              scale: null
+              scale: null,
+              xml: null
             },
             default: null,
             notNull: false,
@@ -413,7 +421,8 @@ $$,
               schema: null,
               length: null,
               precision: 18,
-              scale: 2
+              scale: 2,
+              xml: null
             },
             default: 0,
             notNull: true,
@@ -438,7 +447,8 @@ $$,
                   schema: null,
                   length: null,
                   precision: null,
-                  scale: null
+                  scale: null,
+                  xml: null
                 }
               },
               {
@@ -448,7 +458,8 @@ $$,
                   schema: null,
                   length: null,
                   precision: null,
-                  scale: null
+                  scale: null,
+                  xml: null
                 }
               }
             ],
@@ -464,7 +475,8 @@ $$,
                   schema: null,
                   length: null,
                   precision: 18,
-                  scale: 2
+                  scale: 2,
+                  xml: null
                 }
               },
               {
@@ -474,7 +486,8 @@ $$,
                   schema: null,
                   length: null,
                   precision: null,
-                  scale: null
+                  scale: null,
+                  xml: null
                 }
               }
             ],

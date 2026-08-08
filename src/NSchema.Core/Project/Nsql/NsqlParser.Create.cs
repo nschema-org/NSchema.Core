@@ -13,6 +13,7 @@ using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Syntax.Templates;
 using NSchema.Project.Nsql.Syntax.Triggers;
 using NSchema.Project.Nsql.Syntax.Views;
+using NSchema.Project.Nsql.Syntax.XmlSchemaCollections;
 using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
@@ -103,6 +104,12 @@ internal sealed partial class NsqlParser
         {
             Token? primary = _current.IsKeyword(NsqlKeywords.Primary) ? Advance() : null;
             var xml = ExpectKeyword(NsqlKeywords.Xml);
+
+            // CREATE XML opens two statements: an index, or a schema collection.
+            if (primary is null && _current.IsKeyword(NsqlKeywords.Schema))
+            {
+                return ParseCreateXmlSchemaCollection(create, xml, doc);
+            }
             return ParseCreateIndex(create, uniqueKeyword: null, doc, primary, xml);
         }
         if (_current.IsKeyword(NsqlKeywords.Unique))
@@ -189,6 +196,30 @@ internal sealed partial class NsqlParser
             ViewKeyword = view,
             WithKeyword = withKeyword,
             SchemaBindingKeyword = schemaBindingKeyword,
+            AsKeyword = asKeyword,
+            BodyToken = bodyToken,
+            SemicolonToken = semicolon,
+        };
+    }
+
+    // The "XML" keyword has already been consumed by the dispatcher.
+    private CreateXmlSchemaCollectionStatement ParseCreateXmlSchemaCollection(Token create, Token xml, Token? doc)
+    {
+        var schemaKeyword = ExpectKeyword(NsqlKeywords.Schema);
+        var collectionKeyword = ExpectKeyword(NsqlKeywords.Collection);
+        var name = ParseQualifiedNameNode();
+        var asKeyword = ExpectKeyword(NsqlKeywords.As);
+        var (body, bodyToken) = CaptureOpaqueBody("an XML schema collection body");
+        var semicolon = Expect(TokenKind.Semicolon, "';' to end the collection");
+
+        return new CreateXmlSchemaCollectionStatement(name, body)
+        {
+            Doc = doc?.Text,
+            DocComment = doc,
+            CreateKeyword = create,
+            XmlKeyword = xml,
+            SchemaKeyword = schemaKeyword,
+            CollectionKeyword = collectionKeyword,
             AsKeyword = asKeyword,
             BodyToken = bodyToken,
             SemicolonToken = semicolon,
@@ -840,6 +871,29 @@ internal sealed partial class NsqlParser
         }
         string? arguments = null;
         Token? open = null, precision = null, comma = null, scale = null, close = null;
+        QualifiedName? xmlCollection = null;
+        Token? contentKeyword = null;
+        var isDocument = false;
+
+        // A typed xml names a schema collection where every other type carries a length or precision, so the
+        // type's own name decides how its argument reads — no lookahead needed, and nothing else is ambiguous.
+        if (_current.Kind == TokenKind.LeftParen && schema is null
+            && NsqlKeywords.Comparer.Equals(name.Value, NsqlKeywords.Xml))
+        {
+            open = Advance();
+            contentKeyword = Advance();
+            isDocument = contentKeyword.Value.IsKeyword(NsqlKeywords.Document);
+            xmlCollection = ParseQualifiedNameNode();
+            close = Expect(TokenKind.RightParen, "')'");
+            return new TypeName(schema, name, null, xmlCollection, isDocument)
+            {
+                SchemaDotToken = schemaDot,
+                OpenParenToken = open,
+                ContentKeyword = contentKeyword,
+                CloseParenToken = close,
+            };
+        }
+
         if (_current.Kind == TokenKind.LeftParen)
         {
             open = Advance();

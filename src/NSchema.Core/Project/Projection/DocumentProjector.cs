@@ -12,6 +12,7 @@ using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
 using NSchema.Model.Views;
+using NSchema.Model.XmlSchemaCollections;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Routines;
 using Syn = NSchema.Project.Nsql.Syntax;
@@ -37,6 +38,12 @@ internal static class DocumentProjector
             case Syn.Tables.CreateTableStatement s:
                 ProjectTable(s, schemas, context);
                 break;
+            case Syn.XmlSchemaCollections.CreateXmlSchemaCollectionStatement s:
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    schemas.AddXmlSchemaCollection(schema, new XmlSchemaCollection { Name = name, Body = s.Body, Comment = s.Doc }, s.Name.Position);
+                    break;
+                }
             case Syn.Views.CreateViewStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
@@ -339,6 +346,18 @@ internal static class DocumentProjector
 
     private static SqlType ParseType(Syn.TypeName type)
     {
+        // A typed xml is the base type plus the collection it validates against; the collection is an object
+        // reference, so it binds like one rather than folding into the type's name.
+        if (type.XmlCollection is { } collection)
+        {
+            return SqlType.Custom(type.Name.Value) with
+            {
+                Xml = new XmlTypeBinding(
+                    new ObjectAddress(Name(collection.Schema!), Name(collection.Name), SchemaObjectKind.XmlSchemaCollection),
+                    type.IsDocument),
+            };
+        }
+
         if (type.Schema is { } schema)
         {
             return SqlType.Custom(Name(schema), type.Name.Value);

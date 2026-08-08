@@ -14,6 +14,7 @@ using NSchema.Plan.Domain.Sequences;
 using NSchema.Plan.Domain.Tables;
 using NSchema.Plan.Domain.Triggers;
 using NSchema.Plan.Domain.Views;
+using NSchema.Plan.Domain.XmlSchemaCollections;
 
 namespace NSchema.Plan.Plugins;
 
@@ -100,6 +101,8 @@ public abstract partial class SqlDialect
         SetTriggerComment x => SetTriggerComment(x),
 
         // Views
+        CreateXmlSchemaCollection x => CreateXmlSchemaCollection(x),
+        DropXmlSchemaCollection x => DropXmlSchemaCollection(x),
         CreateView x => CreateView(x),
         ReplaceView x => ReplaceView(x),
         DropView x => DropView(x),
