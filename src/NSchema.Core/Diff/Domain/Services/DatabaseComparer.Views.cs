@@ -39,7 +39,10 @@ internal sealed partial class DatabaseComparer
         var bindingFlipped = current.IsSchemaBound != desired.IsSchemaBound;
         var redeclared = bodyChanged || bindingFlipped;
 
-        var requiresRecreate = materializationFlipped || (redeclared && desired.IsMaterialized);
+        // Indexes hang off the view's stored form, so redeclaring it takes them with it: SQL Server's
+        // CREATE OR ALTER VIEW drops an indexed view's indexes outright. A view that carries any therefore
+        // cannot be replaced in place — it is dropped and recreated, and the indexes are rebuilt with it.
+        var requiresRecreate = materializationFlipped || (redeclared && (desired.IsMaterialized || desired.Indexes.Count > 0));
 
         // Indexes are diffed in place only when the view is not being recreated; on a create or recreate they
         // ride along on the definition and are rebuilt with it.

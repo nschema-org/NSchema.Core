@@ -10,12 +10,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **XML indexes.** `TableIndex.Xml` carries an `XmlIndexDefinition` — the kind (primary, path, value, property) and, for a secondary, the primary XML index whose node table it reads. Written as SQL Server writes it.
 - **Views declare their schema binding.** `View.IsSchemaBound` records whether a view is bound to the schema of what it reads, written in NSQL as `CREATE VIEW name WITH SCHEMABINDING AS …`, the spelling SQL Server uses.
 
 ### Changed
 
 - **A view may carry indexes whether or not it is materialized.** `CREATE INDEX … ON schema.view` no longer requires the view to be materialized.
 - **`CreateIndex` says whether its owner is a view.** The new `OnView` flag rides the action, as `IsMaterialized` does on the view actions.
+
+### Fixed
+
+- **A comment opening an opaque body survives the round trip.** A view body or routine definition whose first line is a comment lost it on re-parse. This is now fixed.
+- **A view carrying indexes is recreated, not replaced.** Indexes hang off a view's stored form, and SQL Server's `CREATE OR ALTER VIEW` drops an indexed view's indexes outright, so redeclaring one in place destroyed them silently. A body or binding change on a view carrying indexes now drops and recreates it, rebuilding the indexes with the definition.
 
 ## [5.6.1] - 2026-08-07
 

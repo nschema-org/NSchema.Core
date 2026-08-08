@@ -145,6 +145,7 @@ public sealed class NsqlXmlIndexTests
             .Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
 
         view.Indexes.ShouldHaveSingleItem().Name.ShouldBe("v_ix");
+        view.Body.Value.ShouldContain("-- what it is for.");
     }
 
     private static Database Database(params TableIndex[] indexes) => new()
