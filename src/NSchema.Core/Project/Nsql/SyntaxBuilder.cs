@@ -224,7 +224,7 @@ internal static class SyntaxBuilder
                 DocComment = DocToken(exclusion.Comment),
             });
         }
-        foreach (var index in table.Indexes)
+        foreach (var index in table.Indexes.Where(i => i.Xml is null))
         {
             members.Add(new Syn.Indexes.IndexDefinition(Name(index.Name), index.IsUnique, Keys(index.Columns),
                 OptionalName(index.Method),
@@ -240,6 +240,13 @@ internal static class SyntaxBuilder
             Doc = table.Comment,
             DocComment = DocToken(table.Comment),
         });
+
+        // An XML index is standalone: a secondary names the primary it is built over, and a table member has no
+        // way to refer to another index. Emitted after the table, primaries first, so a read sees each in order.
+        foreach (var index in table.Indexes.Where(i => i.Xml is not null).OrderBy(i => i.Xml!.IsPrimary ? 0 : 1))
+        {
+            statements.Add(IndexStatement(schemaName, table.Name, index));
+        }
 
         foreach (var grant in table.Grants)
         {
@@ -268,13 +275,7 @@ internal static class SyntaxBuilder
         // A view's indexes are standalone statements emitted after it.
         foreach (var index in view.Indexes)
         {
-            statements.Add(new Syn.Indexes.CreateIndexStatement(Name(index.Name), index.IsUnique, Qualified(schemaName, view.Name),
-                Keys(index.Columns), OptionalName(index.Method),
-                IncludeList(index.Include), index.Predicate)
-            {
-                Doc = index.Comment,
-                DocComment = DocToken(index.Comment),
-            });
+            statements.Add(IndexStatement(schemaName, view.Name, index));
         }
     }
 
@@ -416,6 +417,17 @@ internal static class SyntaxBuilder
         // The clause exists only when there are options, so the interior text is always present.
         return clause with { InteriorToken = Token.Span(SequenceOptionsText(clause) ?? "") };
     }
+
+    /// <summary>One standalone <c>CREATE INDEX</c> on <paramref name="relation"/>.</summary>
+    private static Syn.Indexes.CreateIndexStatement IndexStatement(SqlIdentifier schemaName, SqlIdentifier relation, TableIndex index) =>
+        new(Name(index.Name), index.IsUnique, Qualified(schemaName, relation),
+            Keys(index.Columns), OptionalName(index.Method),
+            IncludeList(index.Include), index.Predicate,
+            index.Xml is { } xml ? new Syn.Indexes.XmlIndexClause(xml.Kind, OptionalName(xml.PrimaryIndex)) : null)
+        {
+            Doc = index.Comment,
+            DocComment = DocToken(index.Comment),
+        };
 
     private static SeparatedSyntaxList<Syn.Indexes.IndexElement> Keys(IReadOnlyList<IndexColumn> columns) =>
         new(columns.Select(c => new Syn.Indexes.IndexElement(OptionalName(c.Column), c.Expression, Sort(c.Sort), Nulls(c.Nulls))).ToList());

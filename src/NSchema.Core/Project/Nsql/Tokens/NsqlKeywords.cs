@@ -62,6 +62,7 @@ internal static class NsqlKeywords
     public const string Null = "NULL";
     public const string Nulls = "NULLS";
     public const string Of = "OF";
+    public const string Path = "PATH";
     public const string On = "ON";
     public const string Once = "ONCE";
     public const string Or = "OR";
@@ -70,6 +71,7 @@ internal static class NsqlKeywords
     public const string Pre = "PRE";
     public const string Primary = "PRIMARY";
     public const string Procedure = "PROCEDURE";
+    public const string Property = "PROPERTY";
     public const string References = "REFERENCES";
     public const string Rename = "RENAME";
     public const string Routine = "ROUTINE";
@@ -95,12 +97,14 @@ internal static class NsqlKeywords
     public const string Unless = "UNLESS";
     public const string Update = "UPDATE";
     public const string Usage = "USAGE";
+    public const string Value = "VALUE";
     public const string Using = "USING";
     public const string Version = "VERSION";
     public const string View = "VIEW";
     public const string When = "WHEN";
     public const string Where = "WHERE";
     public const string With = "WITH";
+    public const string Xml = "XML";
 
     /// <summary>
     /// How keywords compare: bare words are case-insensitive.

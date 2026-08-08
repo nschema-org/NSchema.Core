@@ -99,6 +99,12 @@ internal sealed partial class NsqlParser
         {
             return ParseCreateIndex(create, uniqueKeyword: null, doc);
         }
+        if (_current.IsAnyKeyword(NsqlKeywords.Xml, NsqlKeywords.Primary))
+        {
+            Token? primary = _current.IsKeyword(NsqlKeywords.Primary) ? Advance() : null;
+            var xml = ExpectKeyword(NsqlKeywords.Xml);
+            return ParseCreateIndex(create, uniqueKeyword: null, doc, primary, xml);
+        }
         if (_current.IsKeyword(NsqlKeywords.Unique))
         {
             var unique = Advance(); // UNIQUE
@@ -190,10 +196,12 @@ internal sealed partial class NsqlParser
     }
 
     /// <summary>
-    /// Parses a standalone index: <c>CREATE [UNIQUE] INDEX name ON s.relation (cols) [WHERE (expr)]</c>. The
-    /// "UNIQUE" keyword (if present) has already been consumed by the dispatcher.
+    /// Parses a standalone index: <c>CREATE [UNIQUE] INDEX name ON s.relation (cols) [WHERE (expr)]</c>, or an
+    /// XML index: <c>CREATE [PRIMARY] XML INDEX name ON s.table (col) [USING XML INDEX primary FOR kind]</c>. The
+    /// "UNIQUE", "PRIMARY" and "XML" keywords (where present) have already been consumed by the dispatcher.
     /// </summary>
-    private CreateIndexStatement ParseCreateIndex(Token create, Token? uniqueKeyword, Token? doc)
+    private CreateIndexStatement ParseCreateIndex(Token create, Token? uniqueKeyword, Token? doc,
+        Token? primaryKeyword = null, Token? xmlKeyword = null)
     {
         var indexKeyword = ExpectKeyword(NsqlKeywords.Index);
         var name = ExpectIdentifierNode("an index name");
@@ -201,16 +209,26 @@ internal sealed partial class NsqlParser
         var on = ParseQualifiedNameNode();
         var method = TryParseIndexMethod();
         var (open, keys, close) = ParseIndexColumns();
+
+        // A primary XML index takes no clause; a secondary must say which primary it reads and in what order.
+        var xml = xmlKeyword is null
+            ? null
+            : primaryKeyword is not null
+                ? new XmlIndexClause(Model.Indexes.XmlIndexKind.Primary)
+                : ParseXmlIndexSource();
+
         var include = TryParseInclude();
         var where = TryParseWhereClause();
         var semicolon = Expect(TokenKind.Semicolon, "';'");
 
-        return new CreateIndexStatement(name, uniqueKeyword is not null, on, keys, method?.Method, include?.Columns, where?.Predicate)
+        return new CreateIndexStatement(name, uniqueKeyword is not null, on, keys, method?.Method, include?.Columns, where?.Predicate, xml)
         {
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
             UniqueKeyword = uniqueKeyword,
+            PrimaryKeyword = primaryKeyword,
+            XmlKeyword = xmlKeyword,
             IndexKeyword = indexKeyword,
             OnKeyword = onKeyword,
             UsingKeyword = method?.Using,
@@ -1130,6 +1148,37 @@ internal sealed partial class NsqlParser
         }
         var usingKeyword = Advance();
         return (usingKeyword, ExpectIdentifierNode("an index access method"));
+    }
+
+    /// <summary>
+    /// Parses a secondary XML index's <c>USING XML INDEX primary FOR {PATH|VALUE|PROPERTY}</c>. It is required:
+    /// a secondary indexes a primary's node table, so there is no such thing as one without a primary named.
+    /// </summary>
+    private XmlIndexClause ParseXmlIndexSource()
+    {
+        var usingKeyword = ExpectKeyword(NsqlKeywords.Using);
+        var xmlKeyword = ExpectKeyword(NsqlKeywords.Xml);
+        var indexKeyword = ExpectKeyword(NsqlKeywords.Index);
+        var primary = ExpectIdentifierNode("the name of the primary XML index this one is built over");
+        var forKeyword = ExpectKeyword(NsqlKeywords.For);
+
+        var kind = _current switch
+        {
+            var t when t.IsKeyword(NsqlKeywords.Path) => Model.Indexes.XmlIndexKind.Path,
+            var t when t.IsKeyword(NsqlKeywords.Value) => Model.Indexes.XmlIndexKind.Value,
+            var t when t.IsKeyword(NsqlKeywords.Property) => Model.Indexes.XmlIndexKind.Property,
+            _ => throw Error($"Expected PATH, VALUE or PROPERTY after FOR, found '{_current.Text}'."),
+        };
+        var kindToken = Advance();
+
+        return new XmlIndexClause(kind, primary)
+        {
+            UsingKeyword = usingKeyword,
+            XmlKeyword = xmlKeyword,
+            IndexKeyword = indexKeyword,
+            ForKeyword = forKeyword,
+            KindToken = kindToken,
+        };
     }
 
     /// <summary>Parses the optional covering <c>INCLUDE (cols)</c> clause of an index; returns <see langword="null"/> when absent.</summary>

@@ -181,6 +181,7 @@
                 isUnique: true,
                 predicate: name IS NOT NULL,
                 method: null,
+                xml: null,
                 name: users_name_ix,
                 comment: unique names
               },
@@ -205,6 +206,7 @@
                 include: [
                   code
                 ],
+                xml: null,
                 name: users_balance_ix,
                 comment: covering balance index
               }
@@ -300,6 +302,7 @@ END,
                 isUnique: true,
                 predicate: null,
                 method: null,
+                xml: null,
                 name: daily_balances_name_ix,
                 comment: by name
               }

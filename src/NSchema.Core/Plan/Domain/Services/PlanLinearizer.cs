@@ -804,11 +804,17 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
     private static void EmitIndexes(TableDiff table, List<MigrationAction> actions)
     {
-        foreach (var index in table.Indexes)
+        foreach (var index in table.Indexes.OrderBy(IndexRank))
         {
             actions.Add(IndexAction(table.Schema, table.Name, table.RenamedFrom ?? table.Name, index));
         }
     }
+
+    /// <summary>
+    /// Where an index change sorts among its owner's own. A secondary XML index reads the node table a primary
+    /// builds, so the primary has to be created first.
+    /// </summary>
+    private static int IndexRank(IndexDiff index) => index.Definition?.Xml is { IsPrimary: false } ? 1 : 0;
 
     /// <summary>
     /// The action for one index change on <paramref name="owner"/>. Drops target <paramref name="preRenameName"/>,

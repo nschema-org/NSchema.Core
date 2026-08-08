@@ -9,7 +9,6 @@ using NSchema.Model.Indexes;
 using NSchema.Model.Routines;
 using NSchema.Model.Scripts;
 using NSchema.Model.Sequences;
-using NSchema.Model.Services;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
 using NSchema.Model.Views;
@@ -47,7 +46,7 @@ internal static class DocumentProjector
             case Syn.Indexes.CreateIndexStatement s:
                 {
                     var (schema, relation) = Bind(s.On, context);
-                    schemas.AddIndex(schema, relation, ProjectIndex(s.Name, s.IsUnique, s.Columns, s.Method, s.Include, s.Predicate, s.Doc), s.Name.Position);
+                    schemas.AddIndex(schema, relation, ProjectIndex(s.Name, s.IsUnique, s.Columns, s.Method, s.Include, s.Predicate, s.Doc, s.Xml), s.Name.Position);
                     break;
                 }
             case CreateRoutineStatement s:
@@ -271,10 +270,21 @@ internal static class DocumentProjector
     }
 
     private static TableIndex ProjectIndex(Syn.Identifier name, bool isUnique, IReadOnlyList<Syn.Indexes.IndexElement> columns,
-        Syn.Identifier? method, IReadOnlyList<Syn.Identifier>? include, SqlText? predicate, string? doc)
+        Syn.Identifier? method, IReadOnlyList<Syn.Identifier>? include, SqlText? predicate, string? doc,
+        Syn.Indexes.XmlIndexClause? xml = null)
     {
         var keys = columns.Select(c => new IndexColumn(OptionalName(c.Column), c.Expression, Map(c.Sort), Map(c.Nulls))).ToList();
-        return new TableIndex { Name = Name(name), Columns = keys, IsUnique = isUnique, Predicate = predicate, Method = method?.Value, Include = Names(include ?? []), Comment = doc };
+        return new TableIndex
+        {
+            Name = Name(name),
+            Columns = keys,
+            IsUnique = isUnique,
+            Predicate = predicate,
+            Method = method?.Value,
+            Include = Names(include ?? []),
+            Xml = xml is null ? null : new XmlIndexDefinition(xml.Kind, OptionalName(xml.PrimaryIndex)),
+            Comment = doc,
+        };
     }
 
     private static Trigger ProjectTrigger(Syn.Triggers.CreateTriggerStatement statement)
