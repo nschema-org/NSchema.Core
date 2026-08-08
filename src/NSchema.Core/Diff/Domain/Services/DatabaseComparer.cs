@@ -308,6 +308,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
             Routines = routines,
             Domains = domains,
             CompositeTypes = compositeTypes,
+            XmlSchemaCollections = xmlSchemaCollections,
         };
     }
 }

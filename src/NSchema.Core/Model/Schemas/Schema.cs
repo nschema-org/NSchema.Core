@@ -121,7 +121,8 @@ public sealed class Schema : DatabaseObject, IEquatable<Schema>
         .Concat(Routines)
         .Concat(Domains)
         .Concat(CompositeTypes)
-        .Concat(NativeTypes);
+        .Concat(NativeTypes)
+        .Concat(XmlSchemaCollections);
 
     /// <inheritdoc/>
     public override Schema Clone() => Copy(IsImplicit);
