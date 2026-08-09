@@ -4,7 +4,7 @@ using NSchema.Project.Nsql.Tokens;
 namespace NSchema.Project.Nsql.Syntax.Indexes;
 
 /// <summary>
-/// <c>CREATE [UNIQUE] INDEX name ON schema.relation [USING method] (keys) [INCLUDE (columns)] [WHERE (predicate)];</c>
+/// <c>CREATE [UNIQUE] [CLUSTERED|NONCLUSTERED] INDEX name ON schema.relation [USING method] (keys) [INCLUDE (columns)] [WHERE (predicate)];</c>
 /// </summary>
 /// <param name="Name">The index name.</param>
 /// <param name="IsUnique">Whether the index is declared <c>UNIQUE</c>.</param>
@@ -14,6 +14,7 @@ namespace NSchema.Project.Nsql.Syntax.Indexes;
 /// <param name="Include">The <c>INCLUDE</c> columns, or <see langword="null"/> when absent.</param>
 /// <param name="Predicate">The partial-index predicate, or <see langword="null"/>.</param>
 /// <param name="Xml">The XML facet, or <see langword="null"/> for an ordinary index.</param>
+/// <param name="Clustered">Whether <c>CLUSTERED</c> or <c>NONCLUSTERED</c> was written.</param>
 public sealed record CreateIndexStatement(
     Identifier Name,
     bool IsUnique,
@@ -22,7 +23,8 @@ public sealed record CreateIndexStatement(
     Identifier? Method = null,
     ColumnList? Include = null,
     SqlText? Predicate = null,
-    XmlIndexClause? Xml = null
+    XmlIndexClause? Xml = null,
+    bool? Clustered = null
 ) : NsqlStatement
 {
     /// <summary>
@@ -34,6 +36,11 @@ public sealed record CreateIndexStatement(
     /// The <c>UNIQUE</c> keyword token, when written unique.
     /// </summary>
     public Token? UniqueKeyword { get; init; }
+
+    /// <summary>
+    /// The <c>CLUSTERED</c> or <c>NONCLUSTERED</c> keyword token, when either was written.
+    /// </summary>
+    public Token? ClusteredKeyword { get; init; }
 
     /// <summary>
     /// The <c>INDEX</c> keyword token.
@@ -112,6 +119,10 @@ public sealed record CreateIndexStatement(
             if (IsUnique)
             {
                 yield return UniqueKeyword ?? Token.Keyword(NsqlKeywords.Unique);
+            }
+            if (Clustered is { } clustered)
+            {
+                yield return ClusteredKeyword ?? Token.Keyword(clustered ? NsqlKeywords.Clustered : NsqlKeywords.Nonclustered);
             }
             if (Xml != null)
             {

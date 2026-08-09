@@ -204,7 +204,7 @@ internal static class SyntaxBuilder
         }
         if (table.PrimaryKey is { } pk)
         {
-            members.Add(new Syn.Constraints.PrimaryKeyDefinition(Name(pk.Name), ColumnList(pk.ColumnNames)) { Doc = pk.Comment, DocComment = DocToken(pk.Comment) });
+            members.Add(new Syn.Constraints.PrimaryKeyDefinition(Name(pk.Name), ColumnList(pk.ColumnNames), pk.Clustered) { Doc = pk.Comment, DocComment = DocToken(pk.Comment) });
         }
         foreach (var fk in table.ForeignKeys)
         {
@@ -219,7 +219,7 @@ internal static class SyntaxBuilder
         }
         foreach (var unique in table.UniqueConstraints)
         {
-            members.Add(new Syn.Constraints.UniqueDefinition(Name(unique.Name), ColumnList(unique.ColumnNames)) { Doc = unique.Comment, DocComment = DocToken(unique.Comment) });
+            members.Add(new Syn.Constraints.UniqueDefinition(Name(unique.Name), ColumnList(unique.ColumnNames), unique.Clustered) { Doc = unique.Comment, DocComment = DocToken(unique.Comment) });
         }
         foreach (var check in table.CheckConstraints)
         {
@@ -240,7 +240,7 @@ internal static class SyntaxBuilder
         {
             members.Add(new Syn.Indexes.IndexDefinition(Name(index.Name), index.IsUnique, Keys(index.Columns),
                 OptionalName(index.Method),
-                IncludeList(index.Include), index.Predicate)
+                IncludeList(index.Include), index.Predicate, index.Clustered)
             {
                 Doc = index.Comment,
                 DocComment = DocToken(index.Comment),
@@ -443,7 +443,8 @@ internal static class SyntaxBuilder
         new(Name(index.Name), index.IsUnique, Qualified(schemaName, relation),
             Keys(index.Columns), OptionalName(index.Method),
             IncludeList(index.Include), index.Predicate,
-            index.Xml is { } xml ? new Syn.Indexes.XmlIndexClause(xml.Kind, OptionalName(xml.PrimaryIndex)) : null)
+            index.Xml is { } xml ? new Syn.Indexes.XmlIndexClause(xml.Kind, OptionalName(xml.PrimaryIndex)) : null,
+            index.Clustered)
         {
             Doc = index.Comment,
             DocComment = DocToken(index.Comment),

@@ -96,7 +96,7 @@ internal sealed partial class NsqlParser
         {
             return ParseCreateTrigger(create, doc);
         }
-        if (_current.IsKeyword(NsqlKeywords.Index))
+        if (_current.IsAnyKeyword(NsqlKeywords.Index, NsqlKeywords.Clustered, NsqlKeywords.Nonclustered))
         {
             return ParseCreateIndex(create, uniqueKeyword: null, doc);
         }
@@ -234,6 +234,7 @@ internal sealed partial class NsqlParser
     private CreateIndexStatement ParseCreateIndex(Token create, Token? uniqueKeyword, Token? doc,
         Token? primaryKeyword = null, Token? xmlKeyword = null)
     {
+        var clustered = TryParseClustered();
         var indexKeyword = ExpectKeyword(NsqlKeywords.Index);
         var name = ExpectIdentifierNode("an index name");
         var onKeyword = ExpectKeyword(NsqlKeywords.On);
@@ -252,12 +253,13 @@ internal sealed partial class NsqlParser
         var where = TryParseWhereClause();
         var semicolon = Expect(TokenKind.Semicolon, "';'");
 
-        return new CreateIndexStatement(name, uniqueKeyword is not null, on, keys, method?.Method, include?.Columns, where?.Predicate, xml)
+        return new CreateIndexStatement(name, uniqueKeyword is not null, on, keys, method?.Method, include?.Columns, where?.Predicate, xml, clustered?.Clustered)
         {
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
             UniqueKeyword = uniqueKeyword,
+            ClusteredKeyword = clustered?.Keyword,
             PrimaryKeyword = primaryKeyword,
             XmlKeyword = xmlKeyword,
             IndexKeyword = indexKeyword,
@@ -755,7 +757,7 @@ internal sealed partial class NsqlParser
         {
             return ParseIndexMember(doc, isUnique: true);
         }
-        if (_current.IsKeyword(NsqlKeywords.Index))
+        if (_current.IsAnyKeyword(NsqlKeywords.Index, NsqlKeywords.Clustered, NsqlKeywords.Nonclustered))
         {
             return ParseIndexMember(doc, isUnique: false);
         }
@@ -965,14 +967,16 @@ internal sealed partial class NsqlParser
         {
             var primary = Advance();
             var key = ExpectKeyword(NsqlKeywords.Key);
+            var clustered = TryParseClustered();
             var columns = ParseColumnList();
-            return new PrimaryKeyDefinition(name, columns)
+            return new PrimaryKeyDefinition(name, columns, clustered?.Clustered)
             {
                 Doc = doc?.Text,
                 DocComment = doc,
                 ConstraintKeyword = constraint,
                 PrimaryKeyword = primary,
                 KeyKeyword = key,
+                ClusteredKeyword = clustered?.Keyword,
             };
         }
         if (_current.IsKeyword(NsqlKeywords.Foreign))
@@ -1000,13 +1004,15 @@ internal sealed partial class NsqlParser
         if (_current.IsKeyword(NsqlKeywords.Unique))
         {
             var unique = Advance();
+            var clustered = TryParseClustered();
             var columns = ParseColumnList();
-            return new UniqueDefinition(name, columns)
+            return new UniqueDefinition(name, columns, clustered?.Clustered)
             {
                 Doc = doc?.Text,
                 DocComment = doc,
                 ConstraintKeyword = constraint,
                 UniqueKeyword = unique,
+                ClusteredKeyword = clustered?.Keyword,
             };
         }
         if (_current.IsKeyword(NsqlKeywords.Check))
@@ -1169,6 +1175,7 @@ internal sealed partial class NsqlParser
         {
             uniqueKeyword = Advance(); // UNIQUE
         }
+        var clustered = TryParseClustered();
         var indexKeyword = ExpectKeyword(NsqlKeywords.Index);
         var name = ExpectIdentifierNode("an index name");
         var method = TryParseIndexMethod();
@@ -1176,11 +1183,12 @@ internal sealed partial class NsqlParser
         var include = TryParseInclude();
         var where = TryParseWhereClause();
 
-        return new IndexDefinition(name, isUnique, keys, method?.Method, include?.Columns, where?.Predicate)
+        return new IndexDefinition(name, isUnique, keys, method?.Method, include?.Columns, where?.Predicate, clustered?.Clustered)
         {
             Doc = doc?.Text,
             DocComment = doc,
             UniqueKeyword = uniqueKeyword,
+            ClusteredKeyword = clustered?.Keyword,
             IndexKeyword = indexKeyword,
             UsingKeyword = method?.Using,
             OpenParenToken = open,
@@ -1194,6 +1202,23 @@ internal sealed partial class NsqlParser
     }
 
     /// <summary>Parses the optional <c>USING &lt;method&gt;</c> clause of an index; returns <see langword="null"/> when absent (default B-tree).</summary>
+    /// <summary>
+    /// Parses an optional <c>CLUSTERED</c> or <c>NONCLUSTERED</c>. Absent means neither was written, which is
+    /// not the same as <c>NONCLUSTERED</c>: the engine's own default stands, and the engines disagree on it.
+    /// </summary>
+    private (bool Clustered, Token Keyword)? TryParseClustered()
+    {
+        if (_current.IsKeyword(NsqlKeywords.Clustered))
+        {
+            return (true, Advance());
+        }
+        if (_current.IsKeyword(NsqlKeywords.Nonclustered))
+        {
+            return (false, Advance());
+        }
+        return null;
+    }
+
     private (Token Using, Identifier Method)? TryParseIndexMethod()
     {
         if (!_current.IsKeyword(NsqlKeywords.Using))

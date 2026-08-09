@@ -21,6 +21,7 @@ internal static class NsqlKeywords
     public const string Cascade = "CASCADE";
     public const string Check = "CHECK";
     public const string Column = "COLUMN";
+    public const string Clustered = "CLUSTERED";
     public const string Collection = "COLLECTION";
     public const string Constraint = "CONSTRAINT";
     public const string Create = "CREATE";
@@ -61,6 +62,7 @@ internal static class NsqlKeywords
     public const string MaxValue = "MAXVALUE";
     public const string MinValue = "MINVALUE";
     public const string No = "NO";
+    public const string Nonclustered = "NONCLUSTERED";
     public const string Not = "NOT";
     public const string Null = "NULL";
     public const string Nulls = "NULLS";
@@ -127,7 +129,7 @@ internal static class NsqlKeywords
     /// <summary>
     /// The keywords that open a table member.
     /// </summary>
-    public static readonly IReadOnlySet<string> MemberOpeners = Group(Constraint, Unique, Index, Include);
+    public static readonly IReadOnlySet<string> MemberOpeners = Group(Constraint, Unique, Index, Include, Clustered, Nonclustered);
 
     /// <summary>
     /// Every keyword in the vocabulary — the string constants of this class.

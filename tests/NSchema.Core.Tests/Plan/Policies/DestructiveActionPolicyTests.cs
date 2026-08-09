@@ -1,4 +1,10 @@
 using NSchema.Diff.Domain;
+using NSchema.Plan.Domain.XmlSchemaCollections;
+using NSchema.Plan.Domain.Domains;
+using NSchema.Plan.Domain.CompositeTypes;
+using NSchema.Diff.Domain.XmlSchemaCollections;
+using NSchema.Diff.Domain.Domains;
+using NSchema.Diff.Domain.CompositeTypes;
 using NSchema.Diff.Domain.Constraints;
 using NSchema.Diff.Domain.Enums;
 using NSchema.Diff.Domain.Extensions;
@@ -276,6 +282,43 @@ public class DestructiveActionPolicyTests
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// The policy switches over every schema-object diff kind and throws on one it does not recognise, so a
+    /// kind added to <see cref="SchemaDiff.EnumerateObjects"/> without a case here crashes the plan instead of
+    /// misjudging it. Walking every kind makes the next one fail here rather than at teardown.
+    /// </summary>
+    [Fact]
+    public void Validate_RemovalOfAnySchemaObjectKind_IsClassifiedRatherThanThrowing()
+    {
+        // Arrange — one removed object of every kind a schema diff can carry.
+        var diff = new DatabaseDiff([SchemaDiff.Containing("app") with
+        {
+            Grants = [],
+            Tables = [TableDiff.Removed("app", "users")],
+            Views = [ViewDiff.Removed("app", "active_users")],
+            Enums = [EnumDiff.Removed("app", "status")],
+            Sequences = [SequenceDiff.Removed("app", "user_id")],
+            Routines = [RoutineDiff.Removed("app", "touch", RoutineKind.Procedure)],
+            Domains = [DomainDiff.Removed("app", "email")],
+            CompositeTypes = [CompositeTypeDiff.Removed("app", "address")],
+            XmlSchemaCollections = [XmlSchemaCollectionDiff.Removed("app", "survey")],
+        }]);
+
+        // Act
+        var errors = _sut.Validate(diff).ToList();
+
+        // Assert — one grouped finding, naming a drop action for every kind.
+        var message = errors.ShouldHaveSingleItem().Message;
+        foreach (var action in new[]
+                 {
+                     nameof(DropTable), nameof(DropView), nameof(DropEnum), nameof(DropSequence),
+                     nameof(DropRoutine), nameof(DropDomain), nameof(DropCompositeType), nameof(DropXmlSchemaCollection),
+                 })
+        {
+            message.ShouldContain(action);
+        }
     }
 
     private static DatabaseDiff TableChange(TableDiff table) =>

@@ -185,6 +185,19 @@ public abstract partial class SqlDialect
     /// </summary>
     protected string ColumnList(IEnumerable<SqlIdentifier> columns) => string.Join(", ", columns.Select(Quote));
 
+    /// <summary>
+    /// Whether the engine orders a relation's rows by one of its indexes, and so has <c>CLUSTERED</c> and
+    /// <c>NONCLUSTERED</c> to say about them.
+    /// </summary>
+    public virtual bool SupportsClustering => false;
+
+    /// <summary>
+    /// The <c> CLUSTERED</c> / <c> NONCLUSTERED</c> fragment for a member that declares one, empty when it
+    /// does not or when the engine has no such concept.
+    /// </summary>
+    protected string ClusteringSql(bool? clustered) =>
+        !SupportsClustering || clustered is not { } value ? "" : value ? " CLUSTERED" : " NONCLUSTERED";
+
     // ── Rendering outcomes ────────────────────────────────────────────────────
 
     /// <summary>

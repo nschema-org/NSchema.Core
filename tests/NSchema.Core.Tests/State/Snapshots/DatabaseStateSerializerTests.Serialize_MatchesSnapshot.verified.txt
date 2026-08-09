@@ -9,6 +9,7 @@
               columnNames: [
                 id
               ],
+              clustered: null,
               name: users_pkey,
               comment: surrogate key
             },
@@ -143,6 +144,7 @@
                 columnNames: [
                   code
                 ],
+                clustered: null,
                 name: users_code_uq,
                 comment: external code
               }
@@ -187,6 +189,7 @@
                 isUnique: true,
                 predicate: name IS NOT NULL,
                 method: null,
+                clustered: null,
                 xml: null,
                 name: users_name_ix,
                 comment: unique names
@@ -209,6 +212,7 @@
                 isUnique: false,
                 predicate: null,
                 method: btree,
+                clustered: null,
                 include: [
                   code
                 ],
@@ -308,6 +312,7 @@ END,
                 isUnique: true,
                 predicate: null,
                 method: null,
+                clustered: null,
                 xml: null,
                 name: daily_balances_name_ix,
                 comment: by name
