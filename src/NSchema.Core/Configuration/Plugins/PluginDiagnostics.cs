@@ -50,10 +50,4 @@ internal static class PluginDiagnostics
         new(Source, "missing-plugin-origin",
             $"Plugin '{label}' declares no origin; give it 'source' and 'version' to resolve a package, or 'path' to load a built assembly.",
             DiagnosticSeverity.Error, position);
-
-    /// <summary>
-    /// A plugin loaded from a path rather than a pinned package. Raised on every run that loads one.
-    /// </summary>
-    public static Diagnostic PluginLoadedFromPath(PluginLabel label, string path) => Diagnostic.Warning(Source, "plugin-from-path",
-        $"Plugin '{label}' is loaded from {path:text} rather than a pinned package, so this project is not reproducible from its lockfile.");
 }
