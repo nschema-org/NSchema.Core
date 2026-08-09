@@ -220,6 +220,7 @@
         IsNullable: false,
         IsIdentity: false,
         IsStored: false,
+        IsRowGuid: false,
         Name: {
           Value: legacy_flag
         },
@@ -251,6 +252,7 @@
         IsNullable: true,
         IsIdentity: false,
         IsStored: false,
+        IsRowGuid: false,
         Name: {
           Value: notes
         },
@@ -312,6 +314,7 @@
               IncrementBy: 1
             },
             IsStored: false,
+            IsRowGuid: false,
             Name: {
               Value: id
             },
@@ -327,6 +330,7 @@
             IsNullable: false,
             IsIdentity: false,
             IsStored: false,
+            IsRowGuid: false,
             Name: {
               Value: name
             },
@@ -442,6 +446,7 @@
         IsNullable: false,
         IsIdentity: false,
         IsStored: false,
+        IsRowGuid: false,
         Name: {
           Value: total
         },

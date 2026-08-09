@@ -808,6 +808,14 @@ internal sealed partial class NsqlParser
         var type = ParseTypeNode();
         var modifiersStart = _current;
 
+        // Before the nullability, which is where T-SQL puts it: 'rowguid uniqueidentifier ROWGUIDCOL NOT NULL'.
+        var isRowGuid = false;
+        if (_current.IsKeyword(NsqlKeywords.RowGuidCol))
+        {
+            Advance();
+            isRowGuid = true;
+        }
+
         var isNullable = true;
         if (_current.IsKeyword(NsqlKeywords.Not))
         {
@@ -863,7 +871,7 @@ internal sealed partial class NsqlParser
         // above carry the semantics. The span runs from the first modifier to the member terminator (',' or ')').
         var modifiers = modifiersStart.Position.Offset < _current.Position.Offset ? RawSpanFrom(modifiersStart, _current) : (Token?)null;
 
-        return new ColumnDefinition(name, type, isNullable, isIdentity, identity, defaultExpression, generatedExpression, stored)
+        return new ColumnDefinition(name, type, isNullable, isIdentity, identity, defaultExpression, generatedExpression, stored, isRowGuid)
         {
             Doc = doc?.Text,
             DocComment = doc,

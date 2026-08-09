@@ -81,6 +81,7 @@ error    structural  rename-target-not-declared                 ProjectDiagnosti
 error    structural  self-rename                                ProjectDiagnostics.SelfRename
 error    structural  index-on-plain-view                        ProjectDiagnostics.UnknownIndexRelation
 warning  advisory    restrict-not-supported                     ReferentialActionDiagnostics.RestrictNotSupported
+warning  advisory    row-guid-not-supported                     RowGuidDiagnostics.RowGuidNotSupported
 warning  advisory    missing-primary-key                        SchemaLintDiagnostics.MissingPrimaryKey
 warning  advisory    nullable-primary-key-column                SchemaLintDiagnostics.NullablePrimaryKeyColumn
 warning  advisory    repeated-column                            SchemaLintDiagnostics.RepeatedColumn

@@ -15,6 +15,7 @@ namespace NSchema.Project.Nsql.Syntax.Tables;
 /// <param name="Default">The <c>DEFAULT</c> expression, or <see langword="null"/>.</param>
 /// <param name="Generated">The <c>GENERATED ALWAYS AS</c> expression, or <see langword="null"/>.</param>
 /// <param name="Stored">Whether a generated column is written to storage (<c>STORED</c>) or computed on read (<c>VIRTUAL</c>).</param>
+/// <param name="RowGuid">Whether the column is the table's <c>ROWGUIDCOL</c>.</param>
 public sealed record ColumnDefinition(
     Identifier Name,
     TypeName Type,
@@ -23,7 +24,8 @@ public sealed record ColumnDefinition(
     IdentityOptionsClause? IdentityOptions = null,
     SqlText? Default = null,
     SqlText? Generated = null,
-    bool Stored = false
+    bool Stored = false,
+    bool RowGuid = false
 ) : TableMember
 {
     /// <summary>

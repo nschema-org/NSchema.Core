@@ -48,6 +48,11 @@ public sealed class Column : ObjectMember, IEquatable<Column>
     public bool IsStored { get; set; }
 
     /// <summary>
+    /// Whether this column is the table's row identifier for merge replication.
+    /// </summary>
+    public bool IsRowGuid { get; set; }
+
+    /// <summary>
     /// The objects the column's expressions call.
     /// An unqualified reference resolves against <paramref name="schema"/>.
     /// </summary>
@@ -82,6 +87,7 @@ public sealed class Column : ObjectMember, IEquatable<Column>
         IdentityOptions = IdentityOptions,
         GeneratedExpression = GeneratedExpression,
         IsStored = IsStored,
+        IsRowGuid = IsRowGuid,
         Comment = Comment,
     };
 
@@ -97,14 +103,16 @@ public sealed class Column : ObjectMember, IEquatable<Column>
         && Equals(DefaultExpression, other.DefaultExpression)
         && Equals(IdentityOptions, other.IdentityOptions)
         && Equals(GeneratedExpression, other.GeneratedExpression)
-        && IsStored == other.IsStored;
+        && IsStored == other.IsStored
+        && IsRowGuid == other.IsRowGuid;
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is Column other && Equals(other);
 
     /// <inheritdoc/>
     public override int GetHashCode() =>
-        HashCode.Combine(Name, Type, IsNullable, IsIdentity, DefaultExpression, IdentityOptions, GeneratedExpression, IsStored);
+        HashCode.Combine(Name, Type, IsNullable, IsIdentity, DefaultExpression, IdentityOptions, GeneratedExpression,
+            HashCode.Combine(IsStored, IsRowGuid));
 
     private string DebuggerDisplay =>
         $"{Name} {Type}" +

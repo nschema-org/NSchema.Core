@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **A generated column records whether it is stored.** `Column.IsStored` and the NSQL `STORED` / `VIRTUAL` keywords.
 - **`SqlDialect.SupportsVirtualGeneratedColumns`** says whether the engine can leave one unstored. Off by default, matching Postgres, which stores every generated column.
 - **`virtual-generated-column-not-supported`** is a warning: a virtual generated column declared against an engine that always stores.
+- **A column records whether it is the table's row identifier for merge replication.** `Column.IsRowGuid` and the NSQL `ROWGUIDCOL` keyword.
 
 ## [5.8.0] - 2026-08-09
 

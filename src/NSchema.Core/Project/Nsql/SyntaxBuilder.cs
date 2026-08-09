@@ -195,7 +195,7 @@ internal static class SyntaxBuilder
         foreach (var column in table.Columns)
         {
             var node = new Syn.Tables.ColumnDefinition(Name(column.Name), Type(column.Type), column.IsNullable, column.IsIdentity,
-                Options(column.IdentityOptions), Default(column.DefaultExpression), column.GeneratedExpression, column.IsStored)
+                Options(column.IdentityOptions), Default(column.DefaultExpression), column.GeneratedExpression, column.IsStored, column.IsRowGuid)
             {
                 Doc = column.Comment,
                 DocComment = DocToken(column.Comment),
@@ -545,6 +545,10 @@ internal static class SyntaxBuilder
     private static string ColumnModifiers(Syn.Tables.ColumnDefinition column)
     {
         var parts = new List<string>();
+        if (column.RowGuid)
+        {
+            parts.Add(NsqlKeywords.RowGuidCol);
+        }
         if (!column.IsNullable)
         {
             parts.Add($"{NsqlKeywords.Not} {NsqlKeywords.Null}");

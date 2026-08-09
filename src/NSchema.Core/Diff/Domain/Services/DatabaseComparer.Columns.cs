@@ -108,6 +108,14 @@ internal sealed partial class DatabaseComparer
             generated = new ValueChange<SqlText>(current.GeneratedExpression, desired.GeneratedExpression);
         }
 
+        // Row-guid is its own change: nothing else about the column moves with it, and losing it is invisible in
+        // every other field.
+        ValueChange<bool>? rowGuid = null;
+        if (current.IsRowGuid != desired.IsRowGuid)
+        {
+            rowGuid = new ValueChange<bool>(current.IsRowGuid, desired.IsRowGuid);
+        }
+
         // Identity changes when the column is toggled into or out of identity, or when both columns are
         // identity but their sequence options differ. Old/New options are null on the side that isn't identity.
         ValueChange<IdentityOptions>? identity = null;
@@ -124,7 +132,7 @@ internal sealed partial class DatabaseComparer
             identity = new ValueChange<IdentityOptions>(oldOptions, newOptions);
         }
 
-        if (renamedFrom is null && type is null && nullability is null && @default is null && comment is null && identity is null && generated is null)
+        if (renamedFrom is null && type is null && nullability is null && @default is null && comment is null && identity is null && generated is null && rowGuid is null)
         {
             return null;
         }
@@ -138,6 +146,7 @@ internal sealed partial class DatabaseComparer
             Identity = identity,
             Comment = comment,
             Generated = generated,
+            RowGuid = rowGuid,
         };
     }
 }

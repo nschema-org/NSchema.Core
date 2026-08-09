@@ -202,6 +202,11 @@ public abstract partial class SqlDialect
     public virtual bool SupportsVirtualGeneratedColumns => false;
 
     /// <summary>
+    /// Whether the engine marks a column as the table's row identifier for merge replication.
+    /// </summary>
+    public virtual bool SupportsRowGuidColumns => false;
+
+    /// <summary>
     /// The <c> CLUSTERED</c> / <c> NONCLUSTERED</c> fragment for a member that declares one, empty when it
     /// does not or when the engine has no such concept.
     /// </summary>

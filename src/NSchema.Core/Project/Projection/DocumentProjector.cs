@@ -139,6 +139,7 @@ internal static class DocumentProjector
                         IdentityOptions = ProjectIdentityOptions(m.IdentityOptions),
                         GeneratedExpression = m.Generated,
                         IsStored = m.Stored,
+                        IsRowGuid = m.RowGuid,
                         Comment = m.Doc,
                     });
                     break;
