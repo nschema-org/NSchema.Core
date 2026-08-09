@@ -17,6 +17,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **`virtual-generated-column-not-supported`** is a warning: a virtual generated column declared against an engine that always stores.
 - **A column records whether it is the table's row identifier for merge replication.** `Column.IsRowGuid` and the NSQL `ROWGUIDCOL` keyword.
 - **A column default can carry its constraint's name.** `Column.DefaultConstraintName` and the NSQL `CONSTRAINT <name> DEFAULT <expr>` form, for engines that make a default a named constraint.
+- **An identity and a trigger can stand aside for a replication agent.** `IdentityOptions.NotForReplication`, `Trigger.IsNotForReplication`, and the NSQL `NOT FOR REPLICATION` form on both.
+
+### Fixed
+
+- **`Trigger.Clone()`, `Equals` and `GetHashCode` cover every field**, as `Column`'s now do. Both enumerate fields by hand, and import clones every object on its way to a file.
 
 ## [5.8.0] - 2026-08-09
 

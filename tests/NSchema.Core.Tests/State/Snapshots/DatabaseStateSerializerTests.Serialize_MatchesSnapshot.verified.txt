@@ -29,7 +29,8 @@
                 identityOptions: {
                   startWith: 1,
                   minValue: 1,
-                  incrementBy: 1
+                  incrementBy: 1,
+                  notForReplication: false
                 },
                 generatedExpression: null,
                 isStored: false,
@@ -261,6 +262,7 @@
                 when: new.balance > 0,
                 functionArguments: null,
                 body: null,
+                isNotForReplication: false,
                 name: users_audit,
                 comment: audit row changes
               },
@@ -275,6 +277,7 @@
                 when: null,
                 functionArguments: null,
                 body: null,
+                isNotForReplication: false,
                 name: users_stamp,
                 comment: null
               },
@@ -290,6 +293,7 @@ BEGIN
   INSERT INTO app.audit (msg) VALUES ('blocked');
   RETURN;
 END,
+                isNotForReplication: false,
                 name: users_guard,
                 comment: block deletes
               }

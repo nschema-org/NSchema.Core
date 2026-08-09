@@ -212,6 +212,11 @@ public abstract partial class SqlDialect
     public virtual bool SupportsNamedDefaults => false;
 
     /// <summary>
+    /// Whether the engine lets an identity or a trigger stand aside while a replication agent writes.
+    /// </summary>
+    public virtual bool SupportsNotForReplication => false;
+
+    /// <summary>
     /// The <c> CLUSTERED</c> / <c> NONCLUSTERED</c> fragment for a member that declares one, empty when it
     /// does not or when the engine has no such concept.
     /// </summary>

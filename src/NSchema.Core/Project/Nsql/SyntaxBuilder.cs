@@ -314,7 +314,7 @@ internal static class SyntaxBuilder
             Qualified(schemaName, tableName), action,
             trigger.UpdateOfColumns is { Count: > 0 } updateOf ? Names(updateOf) : null,
             trigger.Level == TriggerLevel.Row ? Syn.Triggers.TriggerLevel.Row : Syn.Triggers.TriggerLevel.Statement,
-            trigger.When)
+            trigger.When, trigger.IsNotForReplication)
         {
             Doc = trigger.Comment,
             DocComment = DocToken(trigger.Comment),
@@ -423,7 +423,7 @@ internal static class SyntaxBuilder
     }
 
     private static Syn.Tables.IdentityOptionsClause? Options(IdentityOptions? options) =>
-        options is null ? null : new Syn.Tables.IdentityOptionsClause(options.StartWith, options.IncrementBy, options.MinValue);
+        options is null ? null : new Syn.Tables.IdentityOptionsClause(options.StartWith, options.IncrementBy, options.MinValue, options.NotForReplication);
 
     private static Syn.Sequences.SequenceOptionsClause? Options(SequenceOptions options)
     {
@@ -527,6 +527,10 @@ internal static class SyntaxBuilder
                 sb.Append($" {NsqlKeywords.When} (").Append(when.Value).Append(')');
             }
         }
+        if (statement.NotForReplication)
+        {
+            sb.Append($" {NsqlKeywords.Not} {NsqlKeywords.For} {NsqlKeywords.Replication}");
+        }
         return sb.ToString();
     }
 
@@ -558,6 +562,10 @@ internal static class SyntaxBuilder
             parts.Add(column.IdentityOptions is { } options && IdentityOptionsText(options) is { } text
                 ? $"{NsqlKeywords.Identity} ({text})"
                 : NsqlKeywords.Identity);
+            if (column.IdentityOptions is { NotForReplication: true })
+            {
+                parts.Add($"{NsqlKeywords.Not} {NsqlKeywords.For} {NsqlKeywords.Replication}");
+            }
         }
         if (column.DefaultConstraintName is { } constraintName)
         {

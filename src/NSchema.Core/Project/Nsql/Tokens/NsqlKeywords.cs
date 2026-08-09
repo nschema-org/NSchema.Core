@@ -95,6 +95,7 @@ internal static class NsqlKeywords
     public const string Stored = "STORED";
     public const string Virtual = "VIRTUAL";
     public const string RowGuidCol = "ROWGUIDCOL";
+    public const string Replication = "REPLICATION";
     public const string Table = "TABLE";
     public const string Template = "TEMPLATE";
     public const string To = "TO";

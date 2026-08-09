@@ -613,6 +613,16 @@ internal sealed partial class NsqlParser
             when = ReadRawExpression(parenthesised: true);
         }
 
+        // NOT FOR REPLICATION, where T-SQL puts it: after the firing condition and before the body.
+        var notForReplication = false;
+        if (_current.IsKeyword(NsqlKeywords.Not))
+        {
+            Advance();
+            ExpectKeyword(NsqlKeywords.For);
+            ExpectKeyword(NsqlKeywords.Replication);
+            notForReplication = true;
+        }
+
         var header = RawSpanFrom(headerStart, _current);
 
         TriggerAction action;
@@ -660,7 +670,7 @@ internal sealed partial class NsqlParser
 
         var semicolon = Expect(TokenKind.Semicolon, "';'");
 
-        return new CreateTriggerStatement(name, timing, events, on, action, updateOfColumns, level, when)
+        return new CreateTriggerStatement(name, timing, events, on, action, updateOfColumns, level, when, notForReplication)
         {
             Doc = doc?.Text,
             DocComment = doc,
@@ -835,6 +845,15 @@ internal sealed partial class NsqlParser
             Advance();
             isIdentity = true;
             identity = TryParseIdentityOptions();
+
+            // After the options, as T-SQL writes it: IDENTITY(1, 1) NOT FOR REPLICATION.
+            if (_current.IsKeyword(NsqlKeywords.Not))
+            {
+                Advance();
+                ExpectKeyword(NsqlKeywords.For);
+                ExpectKeyword(NsqlKeywords.Replication);
+                identity = (identity ?? new IdentityOptionsClause()) with { NotForReplication = true };
+            }
         }
 
         // A named default reads as T-SQL writes it: CONSTRAINT df_x DEFAULT (...). The name is only meaningful

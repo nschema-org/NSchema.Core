@@ -325,6 +325,7 @@ internal static class DocumentProjector
             When = statement.When,
             FunctionArguments = functionArguments,
             Body = body,
+            IsNotForReplication = statement.NotForReplication,
             Comment = statement.Doc,
         };
     }
@@ -372,7 +373,7 @@ internal static class DocumentProjector
     }
 
     private static IdentityOptions? ProjectIdentityOptions(Syn.Tables.IdentityOptionsClause? options) =>
-        options is null ? null : new IdentityOptions(options.Start, options.MinValue, options.Increment);
+        options is null ? null : new IdentityOptions(options.Start, options.MinValue, options.Increment, options.NotForReplication);
 
     private static SequenceOptions? ProjectSequenceOptions(Syn.Sequences.SequenceOptionsClause? options) =>
         options is null

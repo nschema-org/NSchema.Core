@@ -311,7 +311,8 @@
             IdentityOptions: {
               StartWith: 1,
               MinValue: 1,
-              IncrementBy: 1
+              IncrementBy: 1,
+              NotForReplication: false
             },
             IsStored: false,
             IsRowGuid: false,
