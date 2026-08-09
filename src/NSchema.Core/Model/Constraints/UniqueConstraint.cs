@@ -19,6 +19,7 @@ public sealed class UniqueConstraint : ObjectMember, IEquatable<UniqueConstraint
     /// <summary>
     /// Whether the constraint's backing index orders the table's rows physically rather than sitting beside
     /// them; <see langword="null"/> means the database default.
+    /// </summary>
     public bool? Clustered { get; set; }
 
     /// <inheritdoc/>

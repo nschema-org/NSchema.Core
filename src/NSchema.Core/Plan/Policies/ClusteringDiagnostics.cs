@@ -12,5 +12,5 @@ internal static class ClusteringDiagnostics
     /// </summary>
     public static Diagnostic ClusteringNotSupported(string sites) =>
         Diagnostic.Warning(Source, "clustering-not-supported",
-            $"This engine has does not support clustered indexes, so the clustering declared on {sites:text} is not applied.");
+            $"This engine does not support clustered indexes, so the clustering declared on {sites:text} is not applied.");
 }
