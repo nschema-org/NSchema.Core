@@ -837,6 +837,15 @@ internal sealed partial class NsqlParser
             identity = TryParseIdentityOptions();
         }
 
+        // A named default reads as T-SQL writes it: CONSTRAINT df_x DEFAULT (...). The name is only meaningful
+        // alongside a default, so it is parsed here rather than as a modifier of its own.
+        Identifier? defaultConstraintName = null;
+        if (_current.IsKeyword(NsqlKeywords.Constraint))
+        {
+            Advance();
+            defaultConstraintName = ExpectIdentifierNode("a default constraint name");
+        }
+
         SqlText? defaultExpression = null;
         if (_current.IsKeyword(NsqlKeywords.Default))
         {
@@ -871,7 +880,7 @@ internal sealed partial class NsqlParser
         // above carry the semantics. The span runs from the first modifier to the member terminator (',' or ')').
         var modifiers = modifiersStart.Position.Offset < _current.Position.Offset ? RawSpanFrom(modifiersStart, _current) : (Token?)null;
 
-        return new ColumnDefinition(name, type, isNullable, isIdentity, identity, defaultExpression, generatedExpression, stored, isRowGuid)
+        return new ColumnDefinition(name, type, isNullable, isIdentity, identity, defaultExpression, generatedExpression, stored, isRowGuid, defaultConstraintName)
         {
             Doc = doc?.Text,
             DocComment = doc,

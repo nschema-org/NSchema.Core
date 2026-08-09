@@ -140,6 +140,7 @@ internal static class DocumentProjector
                         GeneratedExpression = m.Generated,
                         IsStored = m.Stored,
                         IsRowGuid = m.RowGuid,
+                        DefaultConstraintName = m.DefaultConstraintName is { } n ? new SqlIdentifier(n.Value) : null,
                         Comment = m.Doc,
                     });
                     break;

@@ -34,6 +34,7 @@
                 generatedExpression: null,
                 isStored: false,
                 isRowGuid: false,
+                defaultConstraintName: null,
                 name: id,
                 comment: null
               },
@@ -53,6 +54,7 @@
                 generatedExpression: null,
                 isStored: false,
                 isRowGuid: false,
+                defaultConstraintName: null,
                 name: name,
                 comment: display name
               },
@@ -72,6 +74,7 @@
                 generatedExpression: null,
                 isStored: false,
                 isRowGuid: false,
+                defaultConstraintName: null,
                 name: balance,
                 comment: null
               },
@@ -91,6 +94,7 @@
                 generatedExpression: null,
                 isStored: false,
                 isRowGuid: false,
+                defaultConstraintName: null,
                 name: code,
                 comment: null
               },
@@ -110,6 +114,7 @@
                 generatedExpression: null,
                 isStored: false,
                 isRowGuid: false,
+                defaultConstraintName: null,
                 name: metadata,
                 comment: null
               },
@@ -129,6 +134,7 @@
                 generatedExpression: upper(name),
                 isStored: true,
                 isRowGuid: false,
+                defaultConstraintName: null,
                 name: name_upper,
                 comment: null
               }

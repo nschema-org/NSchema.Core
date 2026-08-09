@@ -51,6 +51,7 @@ warning  advisory    running-unlocked                           LockDiagnostics.
 error    structural  state-locked                               LockDiagnostics.StateLocked
 error    structural  lock-unreachable                           LockDiagnostics.Unreachable
 error    structural  unwritable                                 LockFileDiagnostics.Unwritable
+warning  advisory    named-default-not-supported                NamedDefaultDiagnostics.NamedDefaultNotSupported
 warning  advisory    formatting                                 NsqlDiagnostics.Formatting
 error    structural  syntax                                     NsqlDiagnostics.Syntax
 error    structural  unreadable-source-file                     NsqlDiagnostics.UnreadableFile

@@ -207,6 +207,11 @@ public abstract partial class SqlDialect
     public virtual bool SupportsRowGuidColumns => false;
 
     /// <summary>
+    /// Whether the engine makes a column default a named constraint.
+    /// </summary>
+    public virtual bool SupportsNamedDefaults => false;
+
+    /// <summary>
     /// The <c> CLUSTERED</c> / <c> NONCLUSTERED</c> fragment for a member that declares one, empty when it
     /// does not or when the engine has no such concept.
     /// </summary>

@@ -53,6 +53,11 @@ public sealed class Column : ObjectMember, IEquatable<Column>
     public bool IsRowGuid { get; set; }
 
     /// <summary>
+    /// The name of the constraint carrying this column's default, where the engine names one.
+    /// </summary>
+    public SqlIdentifier? DefaultConstraintName { get; set; }
+
+    /// <summary>
     /// The objects the column's expressions call.
     /// An unqualified reference resolves against <paramref name="schema"/>.
     /// </summary>
@@ -88,6 +93,7 @@ public sealed class Column : ObjectMember, IEquatable<Column>
         GeneratedExpression = GeneratedExpression,
         IsStored = IsStored,
         IsRowGuid = IsRowGuid,
+        DefaultConstraintName = DefaultConstraintName,
         Comment = Comment,
     };
 
@@ -104,7 +110,8 @@ public sealed class Column : ObjectMember, IEquatable<Column>
         && Equals(IdentityOptions, other.IdentityOptions)
         && Equals(GeneratedExpression, other.GeneratedExpression)
         && IsStored == other.IsStored
-        && IsRowGuid == other.IsRowGuid;
+        && IsRowGuid == other.IsRowGuid
+        && DefaultConstraintName == other.DefaultConstraintName;
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is Column other && Equals(other);
@@ -112,7 +119,7 @@ public sealed class Column : ObjectMember, IEquatable<Column>
     /// <inheritdoc/>
     public override int GetHashCode() =>
         HashCode.Combine(Name, Type, IsNullable, IsIdentity, DefaultExpression, IdentityOptions, GeneratedExpression,
-            HashCode.Combine(IsStored, IsRowGuid));
+            HashCode.Combine(IsStored, IsRowGuid, DefaultConstraintName));
 
     private string DebuggerDisplay =>
         $"{Name} {Type}" +

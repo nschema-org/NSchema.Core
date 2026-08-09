@@ -60,6 +60,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         AddPlanPolicy<ReferentialActionPolicy>();
         AddPlanPolicy<GeneratedColumnStoragePolicy>();
         AddPlanPolicy<RowGuidPolicy>();
+        AddPlanPolicy<NamedDefaultPolicy>();
     }
 
     /// <inheritdoc />

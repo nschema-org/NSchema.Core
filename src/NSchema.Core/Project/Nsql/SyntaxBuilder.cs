@@ -195,7 +195,7 @@ internal static class SyntaxBuilder
         foreach (var column in table.Columns)
         {
             var node = new Syn.Tables.ColumnDefinition(Name(column.Name), Type(column.Type), column.IsNullable, column.IsIdentity,
-                Options(column.IdentityOptions), Default(column.DefaultExpression), column.GeneratedExpression, column.IsStored, column.IsRowGuid)
+                Options(column.IdentityOptions), Default(column.DefaultExpression), column.GeneratedExpression, column.IsStored, column.IsRowGuid, column.DefaultConstraintName is { } defaultName ? Name(defaultName) : null)
             {
                 Doc = column.Comment,
                 DocComment = DocToken(column.Comment),
@@ -558,6 +558,10 @@ internal static class SyntaxBuilder
             parts.Add(column.IdentityOptions is { } options && IdentityOptionsText(options) is { } text
                 ? $"{NsqlKeywords.Identity} ({text})"
                 : NsqlKeywords.Identity);
+        }
+        if (column.DefaultConstraintName is { } constraintName)
+        {
+            parts.Add($"{NsqlKeywords.Constraint} {constraintName.Value}");
         }
         if (column.Default is { } @default)
         {
