@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [Unreleased]
+
+### Added
+
+- **`RESTRICT` is a referential action in its own right.** `ReferentialAction.Restrict` is parsed, written and rendered.
+- **`SqlDialect.SupportsRestrict`** says whether the engine has `RESTRICT` as distinct from `NO ACTION`. Providers have to opt in.
+
 ## [5.8.0] - 2026-08-09
 
 ### Added

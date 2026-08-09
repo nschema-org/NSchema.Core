@@ -19,6 +19,7 @@ internal static class NsqlKeywords
     public const string Begin = "BEGIN";
     public const string Cache = "CACHE";
     public const string Cascade = "CASCADE";
+    public const string Restrict = "RESTRICT";
     public const string Check = "CHECK";
     public const string Column = "COLUMN";
     public const string Clustered = "CLUSTERED";

@@ -380,6 +380,7 @@ internal static class DocumentProjector
     private static ReferentialAction Map(Syn.Constraints.ReferentialAction action) => action switch
     {
         Syn.Constraints.ReferentialAction.Cascade => ReferentialAction.Cascade,
+        Syn.Constraints.ReferentialAction.Restrict => ReferentialAction.Restrict,
         Syn.Constraints.ReferentialAction.SetNull => ReferentialAction.SetNull,
         Syn.Constraints.ReferentialAction.SetDefault => ReferentialAction.SetDefault,
         _ => ReferentialAction.NoAction,

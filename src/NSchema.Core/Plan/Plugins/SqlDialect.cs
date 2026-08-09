@@ -192,6 +192,11 @@ public abstract partial class SqlDialect
     public virtual bool SupportsClustering => false;
 
     /// <summary>
+    /// Whether the engine has <c>RESTRICT</c> as a referential action distinct from <c>NO ACTION</c>.
+    /// </summary>
+    public virtual bool SupportsRestrict => false;
+
+    /// <summary>
     /// The <c> CLUSTERED</c> / <c> NONCLUSTERED</c> fragment for a member that declares one, empty when it
     /// does not or when the engine has no such concept.
     /// </summary>

@@ -458,6 +458,7 @@ internal static class SyntaxBuilder
     private static Syn.Constraints.ReferentialAction Action(ReferentialAction action) => action switch
     {
         ReferentialAction.Cascade => Syn.Constraints.ReferentialAction.Cascade,
+        ReferentialAction.Restrict => Syn.Constraints.ReferentialAction.Restrict,
         ReferentialAction.SetNull => Syn.Constraints.ReferentialAction.SetNull,
         ReferentialAction.SetDefault => Syn.Constraints.ReferentialAction.SetDefault,
         _ => Syn.Constraints.ReferentialAction.NoAction,
@@ -683,6 +684,7 @@ internal static class SyntaxBuilder
     private static string ActionText(Syn.Constraints.ReferentialAction action) => action switch
     {
         Syn.Constraints.ReferentialAction.Cascade => NsqlKeywords.Cascade,
+        Syn.Constraints.ReferentialAction.Restrict => NsqlKeywords.Restrict,
         Syn.Constraints.ReferentialAction.SetNull => $"{NsqlKeywords.Set} {NsqlKeywords.Null}",
         Syn.Constraints.ReferentialAction.SetDefault => $"{NsqlKeywords.Set} {NsqlKeywords.Default}",
         _ => $"{NsqlKeywords.No} {NsqlKeywords.Action}",

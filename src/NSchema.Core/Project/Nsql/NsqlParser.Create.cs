@@ -1076,6 +1076,11 @@ internal sealed partial class NsqlParser
             Advance();
             return ReferentialAction.Cascade;
         }
+        if (_current.IsKeyword(NsqlKeywords.Restrict))
+        {
+            Advance();
+            return ReferentialAction.Restrict;
+        }
         if (_current.IsKeyword(NsqlKeywords.Set))
         {
             Advance();
