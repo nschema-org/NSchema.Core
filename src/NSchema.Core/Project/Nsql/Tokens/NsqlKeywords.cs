@@ -93,6 +93,7 @@ internal static class NsqlKeywords
     public const string Start = "START";
     public const string Statement = "STATEMENT";
     public const string Stored = "STORED";
+    public const string Virtual = "VIRTUAL";
     public const string Table = "TABLE";
     public const string Template = "TEMPLATE";
     public const string To = "TO";

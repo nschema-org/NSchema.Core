@@ -138,6 +138,7 @@ internal static class DocumentProjector
                         DefaultExpression = ProjectDefault(m.Default),
                         IdentityOptions = ProjectIdentityOptions(m.IdentityOptions),
                         GeneratedExpression = m.Generated,
+                        IsStored = m.Stored,
                         Comment = m.Doc,
                     });
                     break;

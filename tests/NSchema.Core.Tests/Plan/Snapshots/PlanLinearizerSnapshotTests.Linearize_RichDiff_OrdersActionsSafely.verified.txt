@@ -219,6 +219,7 @@
         },
         IsNullable: false,
         IsIdentity: false,
+        IsStored: false,
         Name: {
           Value: legacy_flag
         },
@@ -249,6 +250,7 @@
         },
         IsNullable: true,
         IsIdentity: false,
+        IsStored: false,
         Name: {
           Value: notes
         },
@@ -309,6 +311,7 @@
               MinValue: 1,
               IncrementBy: 1
             },
+            IsStored: false,
             Name: {
               Value: id
             },
@@ -323,6 +326,7 @@
             },
             IsNullable: false,
             IsIdentity: false,
+            IsStored: false,
             Name: {
               Value: name
             },
@@ -437,6 +441,7 @@
         },
         IsNullable: false,
         IsIdentity: false,
+        IsStored: false,
         Name: {
           Value: total
         },

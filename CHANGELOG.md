@@ -12,6 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **`RESTRICT` is a referential action in its own right.** `ReferentialAction.Restrict` is parsed, written and rendered.
 - **`SqlDialect.SupportsRestrict`** says whether the engine has `RESTRICT` as distinct from `NO ACTION`. Providers have to opt in.
+- **A generated column records whether it is stored.** `Column.IsStored` and the NSQL `STORED` / `VIRTUAL` keywords.
+- **`SqlDialect.SupportsVirtualGeneratedColumns`** says whether the engine can leave one unstored. Off by default, matching Postgres, which stores every generated column.
+- **`virtual-generated-column-not-supported`** is a warning: a virtual generated column declared against an engine that always stores.
 
 ## [5.8.0] - 2026-08-09
 

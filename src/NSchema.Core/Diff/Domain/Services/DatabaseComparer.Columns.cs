@@ -96,8 +96,14 @@ internal sealed partial class DatabaseComparer
             comment = new ValueChange<string>(current.Comment, desired.Comment);
         }
 
+        // Storage counts as a change to the generated column, not a separate one.
         ValueChange<SqlText>? generated = null;
-        if (current.GeneratedExpression != desired.GeneratedExpression)
+        var generatedChanged = current.GeneratedExpression != desired.GeneratedExpression;
+        var storageChanged = current.GeneratedExpression is not null
+            && desired.GeneratedExpression is not null
+            && current.IsStored != desired.IsStored;
+
+        if (generatedChanged || storageChanged)
         {
             generated = new ValueChange<SqlText>(current.GeneratedExpression, desired.GeneratedExpression);
         }

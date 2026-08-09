@@ -195,7 +195,7 @@ internal static class SyntaxBuilder
         foreach (var column in table.Columns)
         {
             var node = new Syn.Tables.ColumnDefinition(Name(column.Name), Type(column.Type), column.IsNullable, column.IsIdentity,
-                Options(column.IdentityOptions), Default(column.DefaultExpression), column.GeneratedExpression)
+                Options(column.IdentityOptions), Default(column.DefaultExpression), column.GeneratedExpression, column.IsStored)
             {
                 Doc = column.Comment,
                 DocComment = DocToken(column.Comment),
@@ -561,7 +561,8 @@ internal static class SyntaxBuilder
         }
         if (column.Generated is { } generated)
         {
-            parts.Add($"{NsqlKeywords.Generated} {NsqlKeywords.Always} {NsqlKeywords.As} ({generated.Value}) {NsqlKeywords.Stored}");
+            var storage = column.Stored ? NsqlKeywords.Stored : NsqlKeywords.Virtual;
+            parts.Add($"{NsqlKeywords.Generated} {NsqlKeywords.Always} {NsqlKeywords.As} ({generated.Value}) {storage}");
         }
         return string.Join(" ", parts);
     }

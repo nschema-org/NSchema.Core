@@ -32,6 +32,7 @@
                   incrementBy: 1
                 },
                 generatedExpression: null,
+                isStored: false,
                 name: id,
                 comment: null
               },
@@ -49,6 +50,7 @@
                 defaultExpression: null,
                 identityOptions: null,
                 generatedExpression: null,
+                isStored: false,
                 name: name,
                 comment: display name
               },
@@ -66,6 +68,7 @@
                 defaultExpression: 0,
                 identityOptions: null,
                 generatedExpression: null,
+                isStored: false,
                 name: balance,
                 comment: null
               },
@@ -83,6 +86,7 @@
                 defaultExpression: null,
                 identityOptions: null,
                 generatedExpression: null,
+                isStored: false,
                 name: code,
                 comment: null
               },
@@ -100,6 +104,7 @@
                 defaultExpression: null,
                 identityOptions: null,
                 generatedExpression: null,
+                isStored: false,
                 name: metadata,
                 comment: null
               },
@@ -117,6 +122,7 @@
                 defaultExpression: null,
                 identityOptions: null,
                 generatedExpression: upper(name),
+                isStored: true,
                 name: name_upper,
                 comment: null
               }

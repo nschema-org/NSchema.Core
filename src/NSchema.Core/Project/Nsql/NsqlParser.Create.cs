@@ -837,20 +837,33 @@ internal sealed partial class NsqlParser
         }
 
         SqlText? generatedExpression = null;
+        var stored = false;
         if (_current.IsKeyword(NsqlKeywords.Generated))
         {
             Advance();
             ExpectKeyword(NsqlKeywords.Always);
             ExpectKeyword(NsqlKeywords.As);
             generatedExpression = ReadRawExpression(parenthesised: true);
-            ExpectKeyword(NsqlKeywords.Stored);
+
+            // STORED or VIRTUAL, and neither reads as virtual — which is what SQL Server and Sqlite do when the
+            // keyword is left off. Previously STORED was required and then ignored, so every generated column was
+            // stored whatever it said.
+            if (_current.IsKeyword(NsqlKeywords.Stored))
+            {
+                Advance();
+                stored = true;
+            }
+            else if (_current.IsKeyword(NsqlKeywords.Virtual))
+            {
+                Advance();
+            }
         }
 
         // The modifiers after the type are order-fixed and opaque enough to reprint verbatim; the parsed fields
         // above carry the semantics. The span runs from the first modifier to the member terminator (',' or ')').
         var modifiers = modifiersStart.Position.Offset < _current.Position.Offset ? RawSpanFrom(modifiersStart, _current) : (Token?)null;
 
-        return new ColumnDefinition(name, type, isNullable, isIdentity, identity, defaultExpression, generatedExpression)
+        return new ColumnDefinition(name, type, isNullable, isIdentity, identity, defaultExpression, generatedExpression, stored)
         {
             Doc = doc?.Text,
             DocComment = doc,

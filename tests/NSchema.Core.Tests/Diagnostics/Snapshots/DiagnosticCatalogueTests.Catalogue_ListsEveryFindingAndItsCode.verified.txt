@@ -43,6 +43,7 @@ warning  advisory    cannot-be-lowered                          EnforcementDiagn
 error    structural  engine-requirement-unsatisfied             EngineDiagnostics.EngineRequirementUnsatisfied
 error    structural  host-requirement-unsatisfied               EngineDiagnostics.HostRequirementUnsatisfied
 error    structural  requires-recreate                          EnumValueRemovalDiagnostics.RequiresRecreate
+warning  advisory    virtual-generated-column-not-supported     GeneratedColumnStorageDiagnostics.VirtualNotSupported
 error    structural  does-not-reference-core                    HandshakeDiagnostics.DoesNotReferenceCore
 error    structural  engine-older-than-plugin                   HandshakeDiagnostics.EngineOlderThanPlugin
 error    structural  major-mismatch                             HandshakeDiagnostics.MajorMismatch

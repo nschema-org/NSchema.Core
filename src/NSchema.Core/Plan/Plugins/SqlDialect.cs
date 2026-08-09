@@ -197,6 +197,11 @@ public abstract partial class SqlDialect
     public virtual bool SupportsRestrict => false;
 
     /// <summary>
+    /// Whether the engine can leave a generated column unstored, computing it on read.
+    /// </summary>
+    public virtual bool SupportsVirtualGeneratedColumns => false;
+
+    /// <summary>
     /// The <c> CLUSTERED</c> / <c> NONCLUSTERED</c> fragment for a member that declares one, empty when it
     /// does not or when the engine has no such concept.
     /// </summary>

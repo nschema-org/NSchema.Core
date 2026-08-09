@@ -58,6 +58,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         AddPlanPolicy<AdoptionPolicy>();
         AddPlanPolicy<ClusteringPolicy>();
         AddPlanPolicy<ReferentialActionPolicy>();
+        AddPlanPolicy<GeneratedColumnStoragePolicy>();
     }
 
     /// <inheritdoc />
