@@ -19,8 +19,8 @@ using NSchema.Plan.Domain.Routines;
 using NSchema.Plan.Domain.Schemas;
 using NSchema.Plan.Domain.Sequences;
 using NSchema.Plan.Domain.Tables;
-using NSchema.Plan.Domain.XmlSchemaCollections;
 using NSchema.Plan.Domain.Views;
+using NSchema.Plan.Domain.XmlSchemaCollections;
 
 namespace NSchema.Plan.Policies;
 

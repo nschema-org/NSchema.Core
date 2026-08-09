@@ -6,8 +6,8 @@ using NSchema.Model.Routines;
 using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Types;
-using NSchema.Model.XmlSchemaCollections;
 using NSchema.Model.Views;
+using NSchema.Model.XmlSchemaCollections;
 
 namespace NSchema.Model.Schemas;
 

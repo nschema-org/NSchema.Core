@@ -4,9 +4,9 @@ using NSchema.Diff.Domain.Domains;
 using NSchema.Diff.Domain.Enums;
 using NSchema.Diff.Domain.Routines;
 using NSchema.Diff.Domain.Sequences;
-using NSchema.Diff.Domain.XmlSchemaCollections;
 using NSchema.Diff.Domain.Tables;
 using NSchema.Diff.Domain.Views;
+using NSchema.Diff.Domain.XmlSchemaCollections;
 using NSchema.Model;
 
 namespace NSchema.Diff.Domain.Schemas;
