@@ -202,6 +202,23 @@ public sealed class PlanFileManagerTests
         Should.Throw<PlanFileDeserializationException>(() => _sut.Deserialize(garbage));
     }
 
+    [Fact]
+    public void Deserialize_AStatementWrittenBeforeItNamedItsAction_StillReads()
+    {
+        // A statement's action is optional exactly so that a plan file written without one is still a plan file.
+        // Worth pinning: reading enforces required constructor parameters, so making it required would reject
+        // every plan file written by an earlier NSchema.
+        var json = """
+            {"plan":{"diff":{"schemas":[]},"statements":[{"sql":"SELECT 1"}]},"createdAt":"2026-01-01T00:00:00Z"}
+            """;
+
+        // Act
+        var envelope = _sut.Deserialize(Encoding.UTF8.GetBytes(json));
+
+        // Assert
+        envelope.Plan.Statements.ShouldHaveSingleItem().Action.ShouldBeNull();
+    }
+
     // Well-formed JSON that is not a plan. Each of these once deserialized into an envelope holding nulls where a
     // plan should be, so whichever caller dereferenced one first was the thing that appeared to fail. The reader is
     // what has to refuse them, while the file is still the subject.
