@@ -8,7 +8,7 @@ namespace NSchema.Plan.Plugins;
 /// </summary>
 internal static partial class SqlDialectDiagnostics
 {
-    internal static readonly DiagnosticSource Source = "sql-dialect";
+    internal static readonly DiagnosticSource Source = DiagnosticSources.SqlDialect;
 
     public static Diagnostic Unsupported(MigrationAction action, string dialect) =>
         Diagnostic.Error(Source, "unsupported-action", $"{dialect} does not support the '{Describe(action)}' action.");

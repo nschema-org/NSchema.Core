@@ -5,7 +5,7 @@ namespace NSchema.Plan.Policies;
 /// </summary>
 internal static class NotForReplicationDiagnostics
 {
-    internal static readonly DiagnosticSource Source = "capability";
+    internal static readonly DiagnosticSource Source = DiagnosticSources.Capability;
 
     /// <summary>
     /// <c>NOT FOR REPLICATION</c> declared against an engine with no such concept.

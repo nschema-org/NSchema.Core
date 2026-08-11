@@ -5,7 +5,7 @@ namespace NSchema.Operations;
 /// </summary>
 internal static class ApplyDiagnostics
 {
-    internal static readonly DiagnosticSource Source = "apply";
+    internal static readonly DiagnosticSource Source = DiagnosticSources.Apply;
 
     /// <summary>
     /// Applying without a configured state store (the run-once ledger could not be recorded).

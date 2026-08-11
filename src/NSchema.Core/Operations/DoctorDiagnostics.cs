@@ -12,7 +12,7 @@ namespace NSchema.Operations;
 /// </remarks>
 internal static class DoctorDiagnostics
 {
-    internal static readonly DiagnosticSource Source = "doctor";
+    internal static readonly DiagnosticSource Source = DiagnosticSources.Doctor;
 
     /// <summary>
     /// No database is configured, so the application is planning offline.

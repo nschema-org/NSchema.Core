@@ -5,7 +5,7 @@ namespace NSchema.State;
 /// </summary>
 internal static class StateDiagnostics
 {
-    internal static readonly DiagnosticSource Source = "state";
+    internal static readonly DiagnosticSource Source = DiagnosticSources.State;
 
     /// <summary>
     /// Reading or writing state without a configured store.

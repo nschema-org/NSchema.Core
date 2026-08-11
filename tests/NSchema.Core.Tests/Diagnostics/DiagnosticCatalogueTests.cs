@@ -18,7 +18,9 @@ public sealed class DiagnosticCatalogueTests
 
     private static readonly Regex Code = new("\"(?<code>[a-z0-9]+(?:-[a-z0-9]+)*)\"");
 
-    private static readonly Regex SourceDeclaration = new("DiagnosticSource (?<field>\\w+) = \"(?<source>[a-z0-9-]+)\"");
+    private static readonly Regex RegisteredSource = new("DiagnosticSource (?<member>\\w+) = \"(?<source>[a-z0-9-]+)\"");
+
+    private static readonly Regex SourceDeclaration = new(@"DiagnosticSource (?<field>\w+) = DiagnosticSources\.(?<member>\w+)");
 
     private static readonly Regex SourceUse = new("""(?:new|Diagnostic\.(?:Error|Warning|Info))\(\s*(?<field>\w*Source)\s*,""");
 
@@ -27,13 +29,16 @@ public sealed class DiagnosticCatalogueTests
     private static List<(string Catalogue, string Member, string Source, string Code, string Severity, string Kind)> Catalogue()
     {
         var findings = new List<(string, string, string, string, string, string)>();
+        var registry = Registry();
         foreach (var file in Directory.EnumerateFiles(SourceRoot(), "*Diagnostics.cs", SearchOption.AllDirectories))
         {
             var catalogue = Path.GetFileNameWithoutExtension(file);
             // Split the file into members so a finding's code and kind are read from its own body.
             var text = File.ReadAllText(file);
+            // A catalogue names the registry member it reports through, which the registry gives the value of.
             var sources = SourceDeclaration.Matches(text)
-                .ToDictionary(match => match.Groups["field"].Value, match => match.Groups["source"].Value);
+                .Where(match => registry.ContainsKey(match.Groups["member"].Value))
+                .ToDictionary(match => match.Groups["field"].Value, match => registry[match.Groups["member"].Value]);
             var declarations = Member.Matches(text).ToList();
             for (var i = 0; i < declarations.Count; i++)
             {
@@ -69,6 +74,26 @@ public sealed class DiagnosticCatalogueTests
     [Fact]
     public Task Catalogue_ListsEveryFindingAndItsCode() =>
         Verify(string.Join("\n", Catalogue().Select(f => $"{f.Severity,-8} {f.Kind,-11} {f.Source,-22} {f.Code,-42} {f.Catalogue}.{f.Member}")));
+
+    /// <summary>
+    /// The sources <see cref="DiagnosticSources"/> declares, by member name.
+    /// </summary>
+    private static Dictionary<string, string> Registry() =>
+        RegisteredSource.Matches(File.ReadAllText(Path.Combine(SourceRoot(), "NSchema.Core", "Diagnostics", "DiagnosticSources.cs")))
+            .ToDictionary(match => match.Groups["member"].Value, match => match.Groups["source"].Value);
+
+    [Fact]
+    public void EverySourceIsDeclaredRegisteredAndReported()
+    {
+        // What the registry declares, what it offers as All, and what the catalogues report under are one set —
+        // so a source cannot be added without being reachable from configuration, nor linger once unused.
+        var declared = Registry().Values.ToHashSet();
+        var registered = DiagnosticSources.All.Select(source => source.Value).ToHashSet();
+        var reported = Catalogue().Select(finding => finding.Source).ToHashSet();
+
+        registered.ShouldBe(declared, ignoreOrder: true);
+        reported.ShouldBe(declared, ignoreOrder: true);
+    }
 
     [Fact]
     public void EveryCodeIsUnique()
