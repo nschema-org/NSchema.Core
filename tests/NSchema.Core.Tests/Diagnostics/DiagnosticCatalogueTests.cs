@@ -6,10 +6,11 @@ namespace NSchema.Tests.Diagnostics;
 /// The set of findings NSchema can report, and the code each is addressed by.
 /// </summary>
 /// <remarks>
-/// A code keys a finding in configuration and documentation, so it is a contract: this snapshot makes adding,
-/// renaming or removing one a deliberate, reviewable change. It carries each finding's kind too, so what a user
-/// is allowed to silence is reviewable in one place — an advisory finding can be lowered, a structural one cannot. Both are literals inside catalogue members, so they are read
-/// from the sources — nothing can enumerate them at runtime without invoking every member.
+/// A code and a source both key findings in configuration and documentation, so both are a contract: this snapshot
+/// makes adding, renaming or removing one a deliberate, reviewable change. It carries each finding's kind too, so
+/// what a user is allowed to silence is reviewable in one place — an advisory finding can be lowered, a structural
+/// one cannot. All are literals inside catalogue members, so they are read from the sources — nothing can enumerate
+/// them at runtime without invoking every member.
 /// </remarks>
 public sealed class DiagnosticCatalogueTests
 {
@@ -17,16 +18,22 @@ public sealed class DiagnosticCatalogueTests
 
     private static readonly Regex Code = new("\"(?<code>[a-z0-9]+(?:-[a-z0-9]+)*)\"");
 
+    private static readonly Regex SourceDeclaration = new("DiagnosticSource (?<field>\\w+) = \"(?<source>[a-z0-9-]+)\"");
+
+    private static readonly Regex SourceUse = new("""(?:new|Diagnostic\.(?:Error|Warning|Info))\(\s*(?<field>\w*Source)\s*,""");
+
     private static readonly Regex Severity = new("""Diagnostic\.(?<severity>Error|Warning|Info)\(|DiagnosticSeverity\.(?<severity>Error|Warning|Info)""");
 
-    private static List<(string Catalogue, string Member, string Code, string Severity, string Kind)> Catalogue()
+    private static List<(string Catalogue, string Member, string Source, string Code, string Severity, string Kind)> Catalogue()
     {
-        var findings = new List<(string, string, string, string, string)>();
+        var findings = new List<(string, string, string, string, string, string)>();
         foreach (var file in Directory.EnumerateFiles(SourceRoot(), "*Diagnostics.cs", SearchOption.AllDirectories))
         {
             var catalogue = Path.GetFileNameWithoutExtension(file);
             // Split the file into members so a finding's code and kind are read from its own body.
             var text = File.ReadAllText(file);
+            var sources = SourceDeclaration.Matches(text)
+                .ToDictionary(match => match.Groups["field"].Value, match => match.Groups["source"].Value);
             var declarations = Member.Matches(text).ToList();
             for (var i = 0; i < declarations.Count; i++)
             {
@@ -48,7 +55,11 @@ public sealed class DiagnosticCatalogueTests
                     : severity == "error" ? "structural"
                     : "advisory";
 
-                findings.Add((catalogue, declarations[i].Groups["member"].Value, code.Groups["code"].Value, severity, kind));
+                // A member names the source field it reports through, which the file declares the value of.
+                var source = SourceUse.Match(body) is { Success: true } use
+                    && sources.TryGetValue(use.Groups["field"].Value, out var declared) ? declared : "?";
+
+                findings.Add((catalogue, declarations[i].Groups["member"].Value, source, code.Groups["code"].Value, severity, kind));
             }
         }
 
@@ -57,7 +68,7 @@ public sealed class DiagnosticCatalogueTests
 
     [Fact]
     public Task Catalogue_ListsEveryFindingAndItsCode() =>
-        Verify(string.Join("\n", Catalogue().Select(f => $"{f.Severity,-8} {f.Kind,-11} {f.Code,-42} {f.Catalogue}.{f.Member}")));
+        Verify(string.Join("\n", Catalogue().Select(f => $"{f.Severity,-8} {f.Kind,-11} {f.Source,-22} {f.Code,-42} {f.Catalogue}.{f.Member}")));
 
     [Fact]
     public void EveryCodeIsUnique()

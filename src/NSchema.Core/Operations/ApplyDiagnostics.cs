@@ -10,7 +10,7 @@ internal static class ApplyDiagnostics
     /// <summary>
     /// Applying without a configured state store (the run-once ledger could not be recorded).
     /// </summary>
-    public static Diagnostic StoreRequired => Diagnostic.Error(Source, "store-required",
+    public static Diagnostic StoreRequired => Diagnostic.Error(Source, "state-store-required-for-apply",
         "Applying a plan requires a state store to record the run. Register one, or declare the database disposable with ephemeral state.");
 
     /// <summary>
