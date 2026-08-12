@@ -605,6 +605,18 @@ First stable release. The public API is now covered by semantic versioning. Brea
 - SourceLink and symbol packages (`.snupkg`) published alongside the main package for source-level debugging.
 
 [Unreleased]: https://github.com/nschema-org/NSchema.Core/compare/v5.2.0...HEAD
+[5.10.0]: https://github.com/nschema-org/NSchema.Core/compare/v5.9.3...v5.10.0
+[5.9.3]: https://github.com/nschema-org/NSchema.Core/compare/v5.9.2...v5.9.3
+[5.9.2]: https://github.com/nschema-org/NSchema.Core/compare/v5.9.1...v5.9.2
+[5.9.1]: https://github.com/nschema-org/NSchema.Core/compare/v5.9.0...v5.9.1
+[5.9.0]: https://github.com/nschema-org/NSchema.Core/compare/v5.8.0...v5.9.0
+[5.8.0]: https://github.com/nschema-org/NSchema.Core/compare/v5.7.0...v5.8.0
+[5.7.0]: https://github.com/nschema-org/NSchema.Core/compare/v5.6.1...v5.7.0
+[5.6.1]: https://github.com/nschema-org/NSchema.Core/compare/v5.6.0...v5.6.1
+[5.6.0]: https://github.com/nschema-org/NSchema.Core/compare/v5.5.0...v5.6.0
+[5.5.0]: https://github.com/nschema-org/NSchema.Core/compare/v5.4.0...v5.5.0
+[5.4.0]: https://github.com/nschema-org/NSchema.Core/compare/v5.3.0...v5.4.0
+[5.3.0]: https://github.com/nschema-org/NSchema.Core/compare/v5.2.0...v5.3.0
 [5.2.0]: https://github.com/nschema-org/NSchema.Core/compare/v5.1.0...v5.2.0
 [5.1.0]: https://github.com/nschema-org/NSchema.Core/compare/v5.0.1...v5.1.0
 [5.0.1]: https://github.com/nschema-org/NSchema.Core/compare/v5.0.0...v5.0.1
