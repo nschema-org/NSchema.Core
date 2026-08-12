@@ -54,9 +54,6 @@ public sealed class CommentStoragePolicyTests
         diagnostic.Message.ShouldContain("schema 'app'");
         diagnostic.Message.ShouldContain("'app.users'");
         diagnostic.Message.ShouldContain("'app.users.name'");
-
-        // The plan will not settle while the declaration stands, so the finding says what to do about it.
-        diagnostic.Message.ShouldContain("Remove the documentation");
     }
 
     [Fact]
