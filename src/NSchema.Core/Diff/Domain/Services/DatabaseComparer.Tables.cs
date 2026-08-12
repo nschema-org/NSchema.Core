@@ -111,7 +111,7 @@ internal sealed partial class DatabaseComparer
         }
 
         ValueChange<string>? comment = null;
-        if (current.Comment != desired.Comment)
+        if (CommentChanged(current.Comment, desired.Comment))
         {
             LogTableCommentChanged(schemaName, desired.Name);
             comment = new ValueChange<string>(current.Comment, desired.Comment);

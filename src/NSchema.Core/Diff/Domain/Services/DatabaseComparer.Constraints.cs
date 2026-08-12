@@ -18,7 +18,7 @@ internal sealed partial class DatabaseComparer
         // Structurally identical (Equals excludes the comment): at most a comment-only change, applied in place.
         if (current is not null && desired is not null && current.Equals(desired))
         {
-            if (current.Comment != desired.Comment)
+            if (CommentChanged(current.Comment, desired.Comment))
             {
                 LogPrimaryKeyCommentChanged(desired.Name, owner);
                 result.Add(PrimaryKeyDiff.CommentChanged(desired.Name, new ValueChange<string>(current.Comment, desired.Comment)));

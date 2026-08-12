@@ -25,6 +25,12 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
         return new DatabaseDiff(schemas, extensions);
     }
 
+    /// <summary>
+    /// Whether a comment differs in a way this engine could be asked to do something about.
+    /// </summary>
+    private bool CommentChanged(string? current, string? desired) =>
+        equivalence.StoresComments && current != desired;
+
     private List<SchemaDiff> CompareSchemas(IReadOnlyList<Schema> current, IReadOnlyList<Schema> desired, RenameLog renames)
     {
         var result = new List<SchemaDiff>();
@@ -132,7 +138,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
                 LogTableMemberMissingOrChanged(memberKind, currentMember.Name, owner);
                 result.Add(removed(currentMember.Name));
             }
-            else if (currentMember.Comment != matchingDesired.Comment)
+            else if (CommentChanged(currentMember.Comment, matchingDesired.Comment))
             {
                 LogTableMemberCommentChanged(memberKind, currentMember.Name, owner);
                 result.Add(commentChanged(currentMember.Name, new ValueChange<string>(currentMember.Comment, matchingDesired.Comment)));
@@ -267,7 +273,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
         var managed = !desired.IsImplicit && !current.IsImplicit;
 
         ValueChange<string>? comment = null;
-        if (managed && current.Comment != desired.Comment)
+        if (managed && CommentChanged(current.Comment, desired.Comment))
         {
             LogSchemaCommentChanged(desired.Name);
             comment = new ValueChange<string>(current.Comment, desired.Comment);
