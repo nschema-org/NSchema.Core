@@ -6,7 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
-## [5.9.3]
+## [5.10.0] - 2026-08-12
+
+### Added
+
+- **`SqlDialect.SupportsComments`** says whether the engine records a comment at all. True unless a dialect says otherwise, which is the opposite of the other capabilities: they describe something extra an engine might do, while this describes something nearly every engine does, so a provider built before the flag has to keep meaning yes.
+- **`comments-not-supported`** is a warning: documentation declared against an engine that records none, naming every object it covers in one finding rather than one per action skipped while rendering.
+
+## [5.9.3] - 2026-08-12
 
 ### Fixed
 

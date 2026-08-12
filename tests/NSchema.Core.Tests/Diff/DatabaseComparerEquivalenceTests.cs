@@ -79,47 +79,6 @@ public sealed class DatabaseComparerEquivalenceTests
         diff.Schemas.ShouldBeEmpty();
     }
 
-    [Fact]
-    public void Compare_ChangedComment_EngineStoringComments_ReportsChange()
-    {
-        var column = DiffColumn(new SqlEquivalence(),
-            new Column { Name = "name", Type = SqlType.Text, Comment = "the old wording" },
-            new Column { Name = "name", Type = SqlType.Text, Comment = "the new wording" });
-
-        column.ShouldNotBeNull().Comment.ShouldNotBeNull();
-    }
-
-    [Fact]
-    public void Compare_ChangedComment_EngineKeepingNoComments_ReportsNoChange()
-    {
-        // The engine has nowhere to put one, so the difference is not a change it could be asked to make. Left as
-        // one it becomes an action the dialect can only skip, and a skipped change is proposed again on every
-        // later plan — a documented project that never settles.
-        var column = DiffColumn(new CommentlessEquivalence(),
-            new Column { Name = "name", Type = SqlType.Text, Comment = "the old wording" },
-            new Column { Name = "name", Type = SqlType.Text, Comment = "the new wording" });
-
-        column.ShouldBeNull();
-    }
-
-    [Fact]
-    public void Compare_CommentOnlyDifference_EngineKeepingNoComments_LeavesTheColumnAlone()
-    {
-        // Nothing else about the column differs, so suppressing the comment has to leave no diff at all rather
-        // than an empty one.
-        var column = DiffColumn(new CommentlessEquivalence(),
-            new Column { Name = "name", Type = SqlType.Text, Comment = null },
-            new Column { Name = "name", Type = SqlType.Text, Comment = "documented" });
-
-        column.ShouldBeNull();
-    }
-
-    /// <summary>An engine with nowhere to keep a comment, as Sqlite has.</summary>
-    private sealed class CommentlessEquivalence : SqlEquivalence
-    {
-        public override bool StoresComments => false;
-    }
-
     private static ColumnDiff? DiffColumn(SqlEquivalence equivalence, Column current, Column desired) =>
         DiffSchemas(equivalence,
             new Schema { Name = "app", Tables = [new Table { Name = "t", Columns = [current] }] },

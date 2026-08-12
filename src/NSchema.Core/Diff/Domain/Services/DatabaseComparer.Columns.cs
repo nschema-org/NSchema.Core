@@ -90,7 +90,7 @@ internal sealed partial class DatabaseComparer
         }
 
         ValueChange<string>? comment = null;
-        if (CommentChanged(current.Comment, desired.Comment))
+        if (current.Comment != desired.Comment)
         {
             LogColumnCommentChanged(owner, desired.Name);
             comment = new ValueChange<string>(current.Comment, desired.Comment);

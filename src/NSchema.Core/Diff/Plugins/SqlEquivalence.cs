@@ -25,12 +25,6 @@ public class SqlEquivalence
     public virtual bool ValidatesTypeNames => true;
 
     /// <summary>
-    /// Whether the engine keeps a comment at all.
-    /// When <see langword="false"/> (SQLite), a comment is not compared.
-    /// </summary>
-    public virtual bool StoresComments => true;
-
-    /// <summary>
     /// Decides whether two default expressions mean the same default, e.g. folding a literal cast the
     /// database adds when it stores one.
     /// </summary>
