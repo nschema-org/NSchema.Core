@@ -37,10 +37,16 @@ public sealed record DefinitionSet(
     public IReadOnlyList<CheckConstraintDefinition> Checks { get; init; } = [];
 
     /// <summary>
+    /// The column expression definitions in the set.
+    /// </summary>
+    public IReadOnlyList<ColumnExpressionDefinition> Columns { get; init; } = [];
+
+    /// <summary>
     /// Whether the set contains no definitions.
     /// </summary>
     [JsonIgnore]
-    public bool IsEmpty => Views.Count == 0 && Routines.Count == 0 && Triggers.Count == 0 && Checks.Count == 0;
+    public bool IsEmpty => Views.Count == 0 && Routines.Count == 0 && Triggers.Count == 0 && Checks.Count == 0
+        && Columns.Count == 0;
 
     /// <summary>
     /// The definition recorded for the view at <paramref name="address"/>, or <see langword="null"/> when none.
@@ -63,6 +69,11 @@ public sealed record DefinitionSet(
     public CheckConstraintDefinition? FindCheck(MemberAddress address) => Checks.FirstOrDefault(c => c.Address == address);
 
     /// <summary>
+    /// The definition recorded for the column at <paramref name="address"/>, or <see langword="null"/> when none.
+    /// </summary>
+    public ColumnExpressionDefinition? FindColumn(MemberAddress address) => Columns.FirstOrDefault(c => c.Address == address);
+
+    /// <summary>
     /// The set restricted to the definitions the scope covers.
     /// </summary>
     public DefinitionSet ScopedTo(PlanningScope scope) => scope.IsUnscoped ? this : new(
@@ -71,6 +82,7 @@ public sealed record DefinitionSet(
         [.. Triggers.Where(t => scope.Contains(t.Address))])
     {
         Checks = [.. Checks.Where(c => scope.Contains(c.Address))],
+        Columns = [.. Columns.Where(c => scope.Contains(c.Address))],
     };
 
     /// <summary>
@@ -82,6 +94,7 @@ public sealed record DefinitionSet(
         [.. Triggers.Union(other.Triggers)])
     {
         Checks = [.. Checks.Union(other.Checks)],
+        Columns = [.. Columns.Union(other.Columns)],
     };
 
     /// <summary>
@@ -93,6 +106,7 @@ public sealed record DefinitionSet(
         [.. Triggers.Except(other.Triggers)])
     {
         Checks = [.. Checks.Except(other.Checks)],
+        Columns = [.. Columns.Except(other.Columns)],
     };
 
     /// <summary>
@@ -104,6 +118,7 @@ public sealed record DefinitionSet(
         [.. Triggers.Intersect(other.Triggers)])
     {
         Checks = [.. Checks.Intersect(other.Checks)],
+        Columns = [.. Columns.Intersect(other.Columns)],
     };
 
     /// <summary>
@@ -115,6 +130,7 @@ public sealed record DefinitionSet(
         [.. Triggers.Where(t => identities.SchemaObjects.Any(o => o.Covers(t.Address)))])
     {
         Checks = [.. Checks.Where(c => identities.SchemaObjects.Any(o => o.Covers(c.Address)))],
+        Columns = [.. Columns.Where(c => identities.SchemaObjects.Any(o => o.Covers(c.Address)))],
     };
 
     /// <summary>
@@ -126,5 +142,6 @@ public sealed record DefinitionSet(
         [.. Triggers.Where(t => other.Triggers.Any(o => o.Address == t.Address))])
     {
         Checks = [.. Checks.Where(c => other.Checks.Any(o => o.Address == c.Address))],
+        Columns = [.. Columns.Where(c => other.Columns.Any(o => o.Address == c.Address))],
     };
 }

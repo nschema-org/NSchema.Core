@@ -1,4 +1,5 @@
 using NSchema.Model;
+using NSchema.Model.Columns;
 using NSchema.Model.Constraints;
 using NSchema.Model.Routines;
 using NSchema.Model.Schemas;
@@ -16,6 +17,7 @@ public sealed class DefinitionSetTests
     private static ObjectAddress RoutineAddress(string name) => ObjectAddress.Routine(_app, name);
     private static MemberAddress TriggerAddress(string table, string name) => MemberAddress.Trigger(_app, table, name);
     private static MemberAddress CheckAddress(string table, string name) => MemberAddress.CheckConstraint(_app, table, name);
+    private static MemberAddress ColumnAddress(string table, string name) => MemberAddress.Column(_app, table, name);
 
     /// <summary>A database holding one body-bearing object of each kind.</summary>
     private static Database BodyBearing() => new()
@@ -30,6 +32,12 @@ public sealed class DefinitionSetTests
                 Tables = [new Table
                 {
                     Name = "users",
+                    Columns =
+                    {
+                        new Column { Name = "label", Type = SqlType.Text, DefaultExpression = "'a' || 'b'" },
+                        new Column { Name = "total", Type = SqlType.Text, GeneratedExpression = "qty * price" },
+                        new Column { Name = "plain", Type = SqlType.Text },
+                    },
                     Triggers = [new Trigger { Name = "audit", Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Body = "CALL audit()" }],
                     CheckConstraints = { new CheckConstraint { Name = "ck_balance", Expression = "balance >= 10" } },
                 }],
@@ -48,6 +56,12 @@ public sealed class DefinitionSetTests
         definitions.Routines.ShouldHaveSingleItem().ShouldBe(new RoutineDefinition(RoutineAddress("f"), "a int", "RETURNS int AS $$ SELECT a $$"));
         definitions.Triggers.ShouldHaveSingleItem().ShouldBe(new TriggerDefinition(TriggerAddress("users", "audit"), null, null, "CALL audit()"));
         definitions.Checks.ShouldHaveSingleItem().ShouldBe(new CheckConstraintDefinition(CheckAddress("users", "ck_balance"), "balance >= 10"));
+
+        // Only the two columns carrying an expression; a column with neither has no spelling to record.
+        definitions.Columns.ShouldBe([
+            new ColumnExpressionDefinition(ColumnAddress("users", "label"), "'a' || 'b'"),
+            new ColumnExpressionDefinition(ColumnAddress("users", "total"), Generated: "qty * price"),
+        ]);
     }
 
     [Fact]
@@ -62,6 +76,11 @@ public sealed class DefinitionSetTests
         {
             // What SQL Server hands back for an author's 'balance >= 10'.
             Checks = [new CheckConstraintDefinition(CheckAddress("users", "ck_balance"), "([balance]>=(10))")],
+            Columns =
+            [
+                new ColumnExpressionDefinition(ColumnAddress("users", "label"), "('a' || 'b')"),
+                new ColumnExpressionDefinition(ColumnAddress("users", "total"), Generated: "((qty * price))"),
+            ],
         };
 
         // Act
@@ -75,6 +94,27 @@ public sealed class DefinitionSetTests
         schema.Tables[0].Triggers[0].When.ShouldBe(new SqlText("(true)"));
         schema.Tables[0].Triggers[0].Body.ShouldBe(new SqlText("CALL app.audit()"));
         schema.Tables[0].CheckConstraints[0].Expression.ShouldBe(new SqlText("([balance]>=(10))"));
+        schema.Tables[0].Columns[0].DefaultExpression.ShouldBe(new SqlDefaultExpression("('a' || 'b')"));
+        schema.Tables[0].Columns[1].GeneratedExpression.ShouldBe(new SqlText("((qty * price))"));
+    }
+
+    [Fact]
+    public void WithDefinitions_AnExpressionTheEngineNoLongerReports_IsNotRestored()
+    {
+        // Arrange — the default was dropped in the database, so the recorded spelling must not put it back:
+        // that is drift to report, not a spelling to reconcile.
+        var database = BodyBearing();
+        database.Schemas[0].Tables[0].Columns[0].DefaultExpression = null;
+        var declared = new DefinitionSet
+        {
+            Columns = [new ColumnExpressionDefinition(ColumnAddress("users", "label"), "('a' || 'b')")],
+        };
+
+        // Act
+        var spelled = database.WithDefinitions(declared);
+
+        // Assert
+        spelled.Schemas[0].Tables[0].Columns[0].DefaultExpression.ShouldBeNull();
     }
 
     [Fact]
@@ -217,5 +257,6 @@ public sealed class DefinitionSetTests
         result.Routines.ShouldNotBeEmpty($"{operation} dropped the routines.");
         result.Triggers.ShouldNotBeEmpty($"{operation} dropped the triggers.");
         result.Checks.ShouldNotBeEmpty($"{operation} dropped the checks.");
+        result.Columns.ShouldNotBeEmpty($"{operation} dropped the columns.");
     }
 }

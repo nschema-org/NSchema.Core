@@ -52,6 +52,14 @@ public sealed class Database : IEquatable<Database>
             .. Objects<Table>().SelectMany(t => t.Object.CheckConstraints.Select(check =>
                 new CheckConstraintDefinition(check.Address, check.Expression))),
         ],
+        // Only the columns carrying an expression: the rest have no spelling to disagree about.
+        Columns =
+        [
+            .. Objects<Table>()
+                .SelectMany(t => t.Object.Columns)
+                .Where(column => column.DefaultExpression is not null || column.GeneratedExpression is not null)
+                .Select(column => new ColumnExpressionDefinition(column.Address, column.DefaultExpression, column.GeneratedExpression)),
+        ],
     };
 
     /// <summary>
@@ -97,6 +105,27 @@ public sealed class Database : IEquatable<Database>
             if (definitions.FindCheck(check.Address) is { } declared)
             {
                 check.Expression = declared.Expression;
+            }
+        }
+
+        foreach (var column in copy.Objects<Table>().SelectMany(t => t.Object.Columns))
+        {
+            if (definitions.FindColumn(column.Address) is not { } declared)
+            {
+                continue;
+            }
+
+            // Only where the engine still reports an expression. A member that was dropped out from under us
+            // is simply absent, but a column outlives its default — so overlaying one that is no longer there
+            // would hide the drop rather than report it.
+            if (column.DefaultExpression is not null && declared.Default is not null)
+            {
+                column.DefaultExpression = declared.Default;
+            }
+
+            if (column.GeneratedExpression is not null && declared.Generated is not null)
+            {
+                column.GeneratedExpression = declared.Generated;
             }
         }
 
