@@ -83,7 +83,7 @@ public sealed class RecreateDependentsTests
         // Arrange — a default or not-null change alters the domain in place, so nothing is dropped.
         var diff = new DatabaseDiff
         {
-            Schemas = [SchemaDiff.Modified(_app) with { Domains = [ DomainDiff.Modified(_app, "code")] }],
+            Schemas = [SchemaDiff.Modified(_app) with { Domains = [DomainDiff.Modified(_app, "code")] }],
         };
 
         // Act
