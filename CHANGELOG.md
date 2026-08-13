@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - **Every remaining authored expression settles.** Column defaults and generated expressions, index and exclusion predicates, and a domain's checks and default are opaque SQL, rewritten by the engine, so a handwritten one would never match. All are now kept and declared like-for-like as they are for triggers, routines etc. An expression the database no longer reports is still drift, not a spelling to restore.
+- **Renaming a type no longer retypes the columns declared against it.** The rename moved the type but left every reference naming the old one, so each column read as a retype.
 
 ## [5.10.0] - 2026-08-12
 
