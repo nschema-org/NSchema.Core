@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-- **Authored column defaults and generated expressions settle.** Expressions are opaque SQL, rewritten by the engine, so a handwritten one would never match. Both are now kept and declared like-for-like as they are for triggers, routines etc.
+- **Every remaining authored expression settles.** Column defaults and generated expressions, index and exclusion predicates, and a domain's checks and default are opaque SQL, rewritten by the engine, so a handwritten one would never match. All are now kept and declared like-for-like as they are for triggers, routines etc. An expression the database no longer reports is still drift, not a spelling to restore.
 
 ## [5.10.0] - 2026-08-12
 

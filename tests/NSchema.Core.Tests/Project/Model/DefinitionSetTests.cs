@@ -1,6 +1,8 @@
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Constraints;
+using NSchema.Model.Domains;
+using NSchema.Model.Indexes;
 using NSchema.Model.Routines;
 using NSchema.Model.Schemas;
 using NSchema.Model.Tables;
@@ -18,6 +20,9 @@ public sealed class DefinitionSetTests
     private static MemberAddress TriggerAddress(string table, string name) => MemberAddress.Trigger(_app, table, name);
     private static MemberAddress CheckAddress(string table, string name) => MemberAddress.CheckConstraint(_app, table, name);
     private static MemberAddress ColumnAddress(string table, string name) => MemberAddress.Column(_app, table, name);
+    private static MemberAddress IndexAddress(string owner, string name) => MemberAddress.Index(_app, owner, name);
+    private static MemberAddress ExclusionAddress(string table, string name) => MemberAddress.ExclusionConstraint(_app, table, name);
+    private static ObjectAddress DomainAddress(string name) => ObjectAddress.Domain(_app, name);
 
     /// <summary>A database holding one body-bearing object of each kind.</summary>
     private static Database BodyBearing() => new()
@@ -40,7 +45,21 @@ public sealed class DefinitionSetTests
                     },
                     Triggers = [new Trigger { Name = "audit", Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Body = "CALL audit()" }],
                     CheckConstraints = { new CheckConstraint { Name = "ck_balance", Expression = "balance >= 10" } },
+                    Indexes =
+                    {
+                        new TableIndex { Name = "ix_active", Columns = ["label"], Predicate = "active = 1" },
+                        new TableIndex { Name = "ix_all", Columns = ["label"] },
+                    },
+                    ExclusionConstraints =
+                    {
+                        new ExclusionConstraint { Name = "ex_slot", Elements = [new ExclusionElement("&&", "label")], Predicate = "active = 1" },
+                    },
                 }],
+                Domains =
+                {
+                    new DomainType { Name = "score", DataType = SqlType.Text, Default = "'a' || 'b'",
+                        Checks = { new CheckConstraint { Name = "ck_score", Expression = "VALUE >= 0" } } },
+                },
             },
         ],
     };
@@ -55,7 +74,16 @@ public sealed class DefinitionSetTests
         definitions.Views.ShouldHaveSingleItem().ShouldBe(new ViewDefinition(ViewAddress("active"), "SELECT id FROM users"));
         definitions.Routines.ShouldHaveSingleItem().ShouldBe(new RoutineDefinition(RoutineAddress("f"), "a int", "RETURNS int AS $$ SELECT a $$"));
         definitions.Triggers.ShouldHaveSingleItem().ShouldBe(new TriggerDefinition(TriggerAddress("users", "audit"), null, null, "CALL audit()"));
-        definitions.Checks.ShouldHaveSingleItem().ShouldBe(new CheckConstraintDefinition(CheckAddress("users", "ck_balance"), "balance >= 10"));
+        // A domain's checks are recorded alongside a table's.
+        definitions.Checks.ShouldBe([
+            new CheckConstraintDefinition(CheckAddress("users", "ck_balance"), "balance >= 10"),
+            new CheckConstraintDefinition(CheckAddress("score", "ck_score"), "VALUE >= 0"),
+        ]);
+
+        // Only the filtered index; an unfiltered one has no predicate to disagree about.
+        definitions.Indexes.ShouldHaveSingleItem().ShouldBe(new IndexPredicateDefinition(IndexAddress("users", "ix_active"), "active = 1"));
+        definitions.Exclusions.ShouldHaveSingleItem().ShouldBe(new ExclusionConstraintDefinition(ExclusionAddress("users", "ex_slot"), "active = 1"));
+        definitions.Domains.ShouldHaveSingleItem().ShouldBe(new DomainDefinition(DomainAddress("score"), "'a' || 'b'"));
 
         // Only the two columns carrying an expression; a column with neither has no spelling to record.
         definitions.Columns.ShouldBe([
@@ -75,12 +103,19 @@ public sealed class DefinitionSetTests
             [new TriggerDefinition(TriggerAddress("users", "audit"), "(true)", null, "CALL app.audit()")])
         {
             // What SQL Server hands back for an author's 'balance >= 10'.
-            Checks = [new CheckConstraintDefinition(CheckAddress("users", "ck_balance"), "([balance]>=(10))")],
+            Checks =
+            [
+                new CheckConstraintDefinition(CheckAddress("users", "ck_balance"), "([balance]>=(10))"),
+                new CheckConstraintDefinition(CheckAddress("score", "ck_score"), "((VALUE >= 0))"),
+            ],
             Columns =
             [
                 new ColumnExpressionDefinition(ColumnAddress("users", "label"), "('a' || 'b')"),
                 new ColumnExpressionDefinition(ColumnAddress("users", "total"), Generated: "((qty * price))"),
             ],
+            Indexes = [new IndexPredicateDefinition(IndexAddress("users", "ix_active"), "([active]=(1))")],
+            Exclusions = [new ExclusionConstraintDefinition(ExclusionAddress("users", "ex_slot"), "([active]=(1))")],
+            Domains = [new DomainDefinition(DomainAddress("score"), "('a' || 'b')")],
         };
 
         // Act
@@ -96,6 +131,10 @@ public sealed class DefinitionSetTests
         schema.Tables[0].CheckConstraints[0].Expression.ShouldBe(new SqlText("([balance]>=(10))"));
         schema.Tables[0].Columns[0].DefaultExpression.ShouldBe(new SqlDefaultExpression("('a' || 'b')"));
         schema.Tables[0].Columns[1].GeneratedExpression.ShouldBe(new SqlText("((qty * price))"));
+        schema.Tables[0].Indexes[0].Predicate.ShouldBe(new SqlText("([active]=(1))"));
+        schema.Tables[0].ExclusionConstraints[0].Predicate.ShouldBe(new SqlText("([active]=(1))"));
+        schema.Domains[0].Default.ShouldBe(new SqlDefaultExpression("('a' || 'b')"));
+        schema.Domains[0].Checks[0].Expression.ShouldBe(new SqlText("((VALUE >= 0))"));
     }
 
     [Fact]
@@ -258,5 +297,8 @@ public sealed class DefinitionSetTests
         result.Triggers.ShouldNotBeEmpty($"{operation} dropped the triggers.");
         result.Checks.ShouldNotBeEmpty($"{operation} dropped the checks.");
         result.Columns.ShouldNotBeEmpty($"{operation} dropped the columns.");
+        result.Indexes.ShouldNotBeEmpty($"{operation} dropped the indexes.");
+        result.Exclusions.ShouldNotBeEmpty($"{operation} dropped the exclusions.");
+        result.Domains.ShouldNotBeEmpty($"{operation} dropped the domains.");
     }
 }
