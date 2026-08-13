@@ -57,7 +57,8 @@ internal static class DataHazardDiagnostics
     public static Diagnostic IdentityRestartsOverExistingRows(MemberAddress column, long? start) =>
         Diagnostic.Error(Source, "identity-restart-reissues-values",
             $"Column '{column}' has its identity start moved to {Start(start)}, which restarts the counter.")
-            with { Kind = DiagnosticKind.Advisory };
+            with
+        { Kind = DiagnosticKind.Advisory };
 
     /// <summary>
     /// A sequence whose start moved, so its counter restarts over values it has already handed out.
@@ -69,7 +70,8 @@ internal static class DataHazardDiagnostics
     public static Diagnostic SequenceRestartsOverIssuedValues(ObjectAddress sequence, long? start) =>
         Diagnostic.Error(Source, "sequence-restart-reissues-values",
             $"Sequence '{sequence}' has its start moved to {Start(start)}, which restarts the counter.")
-            with { Kind = DiagnosticKind.Advisory };
+            with
+        { Kind = DiagnosticKind.Advisory };
 
     private static FormattedText Start(long? start) =>
         start is { } value ? $"{value}" : $"the engine's default";
