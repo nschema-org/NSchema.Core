@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [5.11.0] - 2026-08-17
+
+### Added
+
+- **.nsql extension.** NSchema files can now be authored from a `.nsql` extension as well as a `.sql` extension.
+- **TextMate Grammar.** There is a TextMate grammar project in the `grammar` directory in this project that will enable syntax highlighting for `.nsql` files.
+
+### Changed
+
+- **Default file extension.** The default file extension is now `.nsql`.
+
 ## [5.10.2] - 2026-08-13
 
 ### Fixed
